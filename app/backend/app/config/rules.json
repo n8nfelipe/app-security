@@ -1,0 +1,30 @@
+{
+  "security_weights": {
+    "CRIT": 25,
+    "HIGH": 15,
+    "MED": 8,
+    "LOW": 3,
+    "INFO": 0
+  },
+  "performance_thresholds": {
+    "cpu_high_percent": 85,
+    "memory_high_percent": 90,
+    "swap_used_mb": 512,
+    "disk_high_percent": 85,
+    "load_per_cpu_warn": 1.5,
+    "boot_service_slow_seconds": 10
+  },
+  "score_weights": {
+    "security": 0.6,
+    "performance": 0.4
+  },
+  "critical_services": [
+    "ssh.service",
+    "sshd.service",
+    "docker.service",
+    "containerd.service",
+    "nginx.service",
+    "apache2.service",
+    "postgresql.service"
+  ]
+}

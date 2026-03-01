@@ -1,0 +1,24 @@
+services:
+  backend:
+    build:
+      context: ./app/backend
+    environment:
+      APPSEC_API_TOKEN: changeme-token
+      APPSEC_CORS_ORIGINS: '["http://localhost:5173","http://localhost:8080"]'
+      APPSEC_DATABASE_URL: sqlite:////srv/data/app_security_audit.db
+      APPSEC_EXPORT_DIR: /srv/data/exports
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/backend:/srv/data
+
+  frontend:
+    build:
+      context: ./app/frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api/v1
+      VITE_API_TOKEN: changeme-token
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
