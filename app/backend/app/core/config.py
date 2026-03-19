@@ -11,7 +11,14 @@ class Settings(BaseSettings):
 
     app_name: str = "App Security Audit"
     api_token: str = Field(default="changeme-token")
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+        ]
+    )
     database_url: str = Field(default="sqlite:///./app_security_audit.db")
     export_dir: Path = Field(default=Path("./exports"))
     dev_recreate_db: bool = False
