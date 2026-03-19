@@ -1,0 +1,7 @@
+# robots.txt para App Security Audit
+# Permitir que buscadores indexem o site
+User-agent: *
+Allow: /
+
+# Sitemap seria adicionado aqui se disponível
+# Sitemap: https://seu-dominio.com/sitemap.xml
