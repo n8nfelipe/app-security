@@ -4,8 +4,26 @@ import { ScoreTrendChart } from "../components/ScoreTrendChart";
 
 export function PerformancePage({ audit }) {
   const summary = audit.result?.summary;
+  const performanceFindings = (audit.result?.findings ?? []).filter((item) => item.domain === "performance");
   return (
     <div className="page">
+      <section className="section-shell">
+        <div className="section-copy">
+          <p className="eyebrow">Performance Lens</p>
+          <h2>Capacidade, saturacao e estabilidade vistas como sistema, nao como numeros isolados.</h2>
+          <p className="muted">A trilha abaixo combina capacidade, pressao operacional e gargalos visiveis.</p>
+        </div>
+        <div className="section-metrics">
+          <div className="section-metric">
+            <span>Score</span>
+            <strong>{audit.result?.scores?.performance ?? "--"}</strong>
+          </div>
+          <div className="section-metric">
+            <span>Achados</span>
+            <strong>{performanceFindings.length}</strong>
+          </div>
+        </div>
+      </section>
       <section className="analytics-grid">
         <ScoreTrendChart
           rows={[

@@ -4,6 +4,23 @@ import { ScoreTrendChart } from "../components/ScoreTrendChart";
 export function HistoryPage({ audit }) {
   return (
     <div className="page">
+      <section className="section-shell">
+        <div className="section-copy">
+          <p className="eyebrow">History Lens</p>
+          <h2>Evolucao de postura por host, com contexto de tendencia e memoria operacional.</h2>
+          <p className="muted">Use esta camada para perceber melhora, regressao e variacao de baseline.</p>
+        </div>
+        <div className="section-metrics">
+          <div className="section-metric">
+            <span>Scans</span>
+            <strong>{audit.history.length}</strong>
+          </div>
+          <div className="section-metric">
+            <span>Ultimo host</span>
+            <strong>{audit.history[0]?.machine_hostname ?? "--"}</strong>
+          </div>
+        </div>
+      </section>
       <section className="analytics-grid">
         <HistoryTrendChart history={audit.history} />
         <ScoreTrendChart
@@ -32,7 +49,7 @@ export function HistoryPage({ audit }) {
           ]}
         />
       </section>
-      <section className="panel">
+      <section className="panel history-ledger">
         <div className="panel-header">
           <h2>Historico por maquina</h2>
           <p className="muted">Correlacao por hostname e machine-id quando disponivel.</p>
@@ -51,7 +68,7 @@ export function HistoryPage({ audit }) {
             </thead>
             <tbody>
               {audit.history.map((item) => (
-                <tr key={item.scan_id}>
+                <tr key={item.scan_id} className="ledger-row">
                   <td>{item.scan_id.slice(0, 8)}</td>
                   <td>{item.machine_hostname ?? "n/a"}</td>
                   <td>{item.status}</td>

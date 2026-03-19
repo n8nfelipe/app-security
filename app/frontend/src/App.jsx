@@ -21,16 +21,24 @@ const navItems = [
 export default function App() {
   const audit = useAuditData();
   const { theme, toggleTheme } = useTheme();
+  const headlineStats = [
+    { label: "Score", value: audit.result?.scores?.overall ?? "--" },
+    { label: "Findings", value: audit.result?.findings?.length ?? 0 },
+    { label: "Plano", value: audit.result?.recommendations?.length ?? 0 },
+  ];
 
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">
-          <p className="eyebrow">App Security</p>
-          <h1>Linux Security Console</h1>
-          <p className="muted">
-            Coleta read-only para hardening, capacidade e plano de acao.
-          </p>
+        <div className="brand brand-panel">
+          <div className="brand-mark" />
+          <div>
+            <p className="eyebrow">App Security</p>
+            <h1>Linux Security Console</h1>
+            <p className="muted">
+              Coleta read-only para hardening, capacidade e plano de acao.
+            </p>
+          </div>
         </div>
         <div className="status-block">
           <span className="status-dot" />
@@ -58,6 +66,20 @@ export default function App() {
       </aside>
 
       <main className="content">
+        <section className="top-ribbon reveal">
+          <div className="ribbon-copy">
+            <span className="eyebrow">Control Room</span>
+            <strong>Postura do host, sinais de risco e trilha de remediacao em uma unica superficie.</strong>
+          </div>
+          <div className="ribbon-stats">
+            {headlineStats.map((item) => (
+              <div className="ribbon-pill" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
         {audit.error ? <div className="banner error">{audit.error}</div> : null}
         {audit.notice ? <div className="banner">{audit.notice}</div> : null}
         <Routes>

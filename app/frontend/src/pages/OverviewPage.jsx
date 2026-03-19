@@ -8,14 +8,32 @@ export function OverviewPage({ audit }) {
   const summary = audit.result?.summary;
   return (
     <div className="page">
-      <header className="hero">
-        <div>
+      <header className="hero hero-split">
+        <div className="hero-main">
           <p className="eyebrow">Painel operacional</p>
-          <h2>Seguranca e performance do host Linux em uma trilha unica.</h2>
+          <h2>Seguranca, exposicao e capacidade em uma cabine de leitura rapida.</h2>
+          <p className="hero-description">
+            O layout prioriza decisao: primeiro o risco, depois o contexto tecnico e por fim o plano de acao.
+          </p>
+          <div className="hero-tags">
+            <span className="hero-tag">host {audit.result?.machine_hostname ?? "sem coleta"}</span>
+            <span className="hero-tag">distro {audit.result?.distro ?? "n/a"}</span>
+            <span className="hero-tag">modo {audit.result?.mode ?? "agentless"}</span>
+          </div>
         </div>
-        <div className="hero-meta">
-          <span>Host: {audit.result?.machine_hostname ?? "sem coleta"}</span>
-          <span>Distro: {audit.result?.distro ?? "n/a"}</span>
+        <div className="hero-side">
+          <div className="signal-card">
+            <span className="eyebrow">Pulse</span>
+            <strong>{audit.result?.scores?.overall ?? "--"}</strong>
+            <p className="muted">Leitura agregada da postura atual.</p>
+          </div>
+          <div className="signal-bars">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
       </header>
       <ScoreCards scores={audit.result?.scores} />

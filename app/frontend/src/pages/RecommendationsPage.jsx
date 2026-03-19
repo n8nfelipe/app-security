@@ -6,11 +6,24 @@ export function RecommendationsPage({ audit }) {
   const recommendations = audit.result?.recommendations ?? [];
   return (
     <div className="page">
-      <section className="panel">
-        <h2>Gerar plano de acao</h2>
-        <p>
-          As recomendacoes sao derivadas apenas de evidencias read-only e nao executam remediacao automatica.
-        </p>
+      <section className="section-shell">
+        <div className="section-copy">
+          <p className="eyebrow">Action Room</p>
+          <h2>Plano de acao desenhado para execucao segura, com prioridade, validacao e contexto.</h2>
+          <p className="muted">
+            As recomendacoes sao derivadas apenas de evidencias read-only e nao executam remediacao automatica.
+          </p>
+        </div>
+        <div className="section-metrics">
+          <div className="section-metric">
+            <span>Acoes</span>
+            <strong>{recommendations.length}</strong>
+          </div>
+          <div className="section-metric">
+            <span>P0/P1</span>
+            <strong>{recommendations.filter((item) => item.priority === "P0" || item.priority === "P1").length}</strong>
+          </div>
+        </div>
       </section>
       <section className="analytics-grid">
         <RecommendationBreakdownChart recommendations={recommendations} />
