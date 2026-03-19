@@ -62,7 +62,17 @@ Estrutura principal:
 - Orquestracao: [scan_service.py](./app/backend/app/services/scan_service.py)
 - Regras externas: [rules.json](./app/backend/app/config/rules.json)
 
-Setup local do backend:
+### Variáveis de Ambiente do Backend
+
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `APPSEC_API_TOKEN` | `changeme-token` | Token de autenticação da API |
+| `APPSEC_DATABASE_URL` | `sqlite:///./app_security_audit.db` | URL do banco de dados |
+| `APPSEC_EXPORT_DIR` | `./exports` | Diretório de exportações |
+| `APPSEC_HOST_FS_PREFIX` | *(vazio)* | Prefixo do sistema de arquivos do host (ex: `/host` no Docker) |
+| `APPSEC_CORS_ORIGINS` | `["http://localhost:5173"]` | Origens permitidas CORS |
+| `APPSEC_DEV_RECREATE_DB` | `false` | Recriar banco automaticamente (só dev) |
+
 
 ```bash
 cd app/backend
@@ -126,21 +136,72 @@ Arquivos de teste:
 - [ScoreCards.test.jsx](./app/frontend/src/components/ScoreCards.test.jsx)
 - [FindingsTable.test.jsx](./app/frontend/src/components/FindingsTable.test.jsx)
 
-## H) Docker Compose para subir tudo
+## H) Modos de Execução com Permissões de Auditoria
+
+Para que a auditoria funcione com acesso completo ao host Linux (leitura de `/etc/sudoers`, regras de firewall, etc.), dois modos estão disponíveis:
+
+### Modo 1: Docker Privilegiado (padrão neste repositório)
+
+O `docker-compose.yml` já está configurado com:
+- `privileged: true` — acesso completo ao kernel do host
+- `network_mode: "host"` e `pid: "host"` — enxerga processos e rede do host
+- `/:/host:ro` — sistema de arquivos do host montado em somente leitura
+- `APPSEC_HOST_FS_PREFIX=/host` — o backend lê arquivos sob `/host/etc/...` e executa comandos via `chroot /host`
 
 ```bash
+# Subir toda a stack com auditoria completa do host
 docker compose up --build
+# Backend disponível em http://localhost:8001 | Frontend em http://localhost:8080
 ```
 
-Arquivos:
+> ⚠️ **Atenção:** o modo Docker privilegiado concede acesso amplo ao host. Use apenas em ambientes controlados.
+
+### Modo 2: Serviço Systemd Nativo (recomendado para produção)
+
+O script `install_systemd.sh` instala o backend como serviço systemd rodando como `root` diretamente no host. Neste modo o `APPSEC_HOST_FS_PREFIX` não é necessário pois o processo já tem acesso root nativo.
+
+```bash
+cd app/backend
+./install_systemd.sh
+# Backend disponível em http://localhost:8001
+
+# Verificar status
+sudo systemctl status appsec-backend.service
+
+# Ver logs em tempo real
+sudo journalctl -u appsec-backend.service -f
+```
+
+### Modo 3: Desenvolvimento Local (sem root)
+
+Para desenvolvimento e testes unitários, sem acesso root (auditoria limitada ao próprio processo):
+
+```bash
+cd app/backend
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+export APPSEC_API_TOKEN=changeme-token
+uvicorn app.main:app --reload
+```
+
+Migracao local rapida:
+
+- O startup aplica uma migracao SQLite leve para adicionar colunas novas conhecidas, como `recommendations.metadata`.
+- Para recriar o banco automaticamente em desenvolvimento, use `APPSEC_DEV_RECREATE_DB=true`.
+
+```bash
+export APPSEC_DEV_RECREATE_DB=true
+uvicorn app.main:app --reload
+```
+
+Arquivos de infraestrutura:
 
 - Compose: [docker-compose.yml](./docker-compose.yml)
+- Script Systemd: [install_systemd.sh](./app/backend/install_systemd.sh)
 - Backend image: [Dockerfile](./app/backend/Dockerfile)
 - Frontend image: [Dockerfile](./app/frontend/Dockerfile)
 
-Backend em `http://localhost:8000` e frontend em `http://localhost:8080`.
-
-Nota operacional: o `docker compose` sobe a stack para demonstracao e desenvolvimento. Para avaliar o host Linux real em modo agentless, execute o backend diretamente no host-alvo; dentro do container ele enxerga o proprio namespace do container.
 
 ## I) README operacional
 
