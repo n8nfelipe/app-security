@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     default_scan_mode: str = "agentless"
     agent_endpoint: str | None = None
     agent_token: str | None = None
+    host_fs_prefix: str = ""
     rules_file: Path = Field(default=Path(__file__).resolve().parents[1] / "config" / "rules.json")
 
 

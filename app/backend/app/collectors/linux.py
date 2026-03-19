@@ -63,23 +63,23 @@ COMMANDS: dict[str, CommandSpec] = {
 
 
 TEXT_FILES = {
-    "passwd": Path("/etc/passwd"),
-    "group": Path("/etc/group"),
-    "sudoers": Path("/etc/sudoers"),
-    "os_release": Path("/etc/os-release"),
-    "machine_id": Path("/etc/machine-id"),
-    "sshd_config": Path("/etc/ssh/sshd_config"),
-    "fstab": Path("/etc/fstab"),
-    "resolv_conf": Path("/etc/resolv.conf"),
-    "proc_loadavg": Path("/proc/loadavg"),
-    "proc_meminfo": Path("/proc/meminfo"),
-    "proc_diskstats": Path("/proc/diskstats"),
-    "proc_stat": Path("/proc/stat"),
-    "proc_swaps": Path("/proc/swaps"),
+    "passwd": Path(f"{settings.host_fs_prefix}/etc/passwd"),
+    "group": Path(f"{settings.host_fs_prefix}/etc/group"),
+    "sudoers": Path(f"{settings.host_fs_prefix}/etc/sudoers"),
+    "os_release": Path(f"{settings.host_fs_prefix}/etc/os-release"),
+    "machine_id": Path(f"{settings.host_fs_prefix}/etc/machine-id"),
+    "sshd_config": Path(f"{settings.host_fs_prefix}/etc/ssh/sshd_config"),
+    "fstab": Path(f"{settings.host_fs_prefix}/etc/fstab"),
+    "resolv_conf": Path(f"{settings.host_fs_prefix}/etc/resolv.conf"),
+    "proc_loadavg": Path(f"{settings.host_fs_prefix}/proc/loadavg"),
+    "proc_meminfo": Path(f"{settings.host_fs_prefix}/proc/meminfo"),
+    "proc_diskstats": Path(f"{settings.host_fs_prefix}/proc/diskstats"),
+    "proc_stat": Path(f"{settings.host_fs_prefix}/proc/stat"),
+    "proc_swaps": Path(f"{settings.host_fs_prefix}/proc/swaps"),
 }
 
 DIRECTORIES = {
-    "sudoers_d": Path("/etc/sudoers.d"),
+    "sudoers_d": Path(f"{settings.host_fs_prefix}/etc/sudoers.d"),
 }
 
 
@@ -112,12 +112,19 @@ def _safe_read_directory(path: Path) -> dict:
 
 
 def _run_command(spec: CommandSpec) -> dict:
-    binary = shutil.which(spec.argv[0])
+    original_argv = spec.argv
+    if settings.host_fs_prefix:
+        argv = ["chroot", settings.host_fs_prefix, *spec.argv]
+        binary = shutil.which("chroot")
+    else:
+        argv = spec.argv
+        binary = shutil.which(spec.argv[0])
+
     if not binary:
-        return {"available": False, "reason": "binary_not_found", "command": spec.argv}
+        return {"available": False, "reason": "binary_not_found", "command": original_argv}
     try:
         completed = subprocess.run(
-            [binary, *spec.argv[1:]],
+            argv,
             check=False,
             capture_output=True,
             text=True,
@@ -125,14 +132,14 @@ def _run_command(spec: CommandSpec) -> dict:
         )
     except subprocess.TimeoutExpired as exc:
         logger.warning("command_timeout", extra={"command": spec.key, "timeout": spec.timeout})
-        return {"available": True, "timed_out": True, "command": spec.argv, "stdout": exc.stdout or "", "stderr": exc.stderr or ""}
+        return {"available": True, "timed_out": True, "command": original_argv, "stdout": exc.stdout or "", "stderr": exc.stderr or ""}
 
     stdout = (completed.stdout or "")[: settings.command_output_limit]
     stderr = (completed.stderr or "")[: settings.command_output_limit]
     return {
         "available": True,
         "timed_out": False,
-        "command": spec.argv,
+        "command": original_argv,
         "returncode": completed.returncode,
         "stdout": stdout,
         "stderr": stderr,
@@ -173,8 +180,8 @@ def collect_local_snapshot() -> dict:
     try:
                 snapshot = {
             "metadata": {
-                "hostname": Path("/etc/hostname").read_text(encoding="utf-8", errors="replace").strip()
-                if Path("/etc/hostname").exists()
+                "hostname": Path(f"{settings.host_fs_prefix}/etc/hostname").read_text(encoding="utf-8", errors="replace").strip()
+                if Path(f"{settings.host_fs_prefix}/etc/hostname").exists()
                 else None,
                 "psutil": {
                     "cpu_count": psutil.cpu_count() or 1,
@@ -190,8 +197,8 @@ def collect_local_snapshot() -> dict:
             "directories": {name: _safe_read_directory(path) for name, path in DIRECTORIES.items()},
             "commands": {name: _run_command(spec) for name, spec in COMMANDS.items()},
             "filesystem_checks": {
-                "world_writable_etc": _run_limited_find(["/etc", "-xdev", "-type", "f", "-perm", "-0002"]),
-                "suid_sgid_usr": _run_limited_find(["/usr", "-xdev", "-type", "f", "(", "-perm", "-4000", "-o", "-perm", "-2000", ")"]),
+                "world_writable_etc": _run_limited_find([f"{settings.host_fs_prefix}/etc", "-xdev", "-type", "f", "-perm", "-0002"]),
+                "suid_sgid_usr": _run_limited_find([f"{settings.host_fs_prefix}/usr", "-xdev", "-type", "f", "(", "-perm", "-4000", "-o", "-perm", "-2000", ")"]),
             },
         }
     except Exception as exc:  # pragma: no cover - defensive wrapper

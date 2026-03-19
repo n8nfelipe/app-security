@@ -2,15 +2,18 @@ services:
   backend:
     build:
       context: ./app/backend
+    privileged: true
+    network_mode: "host"
+    pid: "host"
     environment:
       APPSEC_API_TOKEN: changeme-token
       APPSEC_CORS_ORIGINS: '["http://localhost:5173","http://localhost:8080"]'
       APPSEC_DATABASE_URL: sqlite:////srv/data/app_security_audit.db
       APPSEC_EXPORT_DIR: /srv/data/exports
-    ports:
-      - "8000:8000"
+      APPSEC_HOST_FS_PREFIX: /host
     volumes:
       - ./data/backend:/srv/data
+      - /:/host:ro
 
   frontend:
     build:
