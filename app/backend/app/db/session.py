@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from collections.abc import Generator
 from pathlib import Path
 
@@ -21,6 +22,7 @@ def init_db() -> None:
     settings.export_dir.mkdir(parents=True, exist_ok=True)
 
 
+@contextmanager
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:

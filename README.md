@@ -23,7 +23,8 @@ Suposicoes explicitas:
 
 - MVP otimizado para Debian/Ubuntu, com deteccao segura quando comandos nao existem.
 - SQLite e suficiente para ambiente local e laboratorios.
-- Auth do MVP usa token compartilhado.
+- **Auth**: Usa token compartilhado configurado via arquivos `.env` (os tokens do frontend e backend devem ser identicos).
+- **UX**: Interface inclui estado inicial ("Empty State") com orientacao clara para a primeira coleta.
 - Agent mode existe na arquitetura, mas depende de endpoint remoto configurado.
 
 Detalhamento adicional em [product-overview.md](./docs/product-overview.md).
@@ -59,19 +60,22 @@ Estrutura principal:
 - Persistencia: [session.py](./app/backend/app/db/session.py), [models.py](./app/backend/app/db/models.py)
 - Coletor read-only: [linux.py](./app/backend/app/collectors/linux.py)
 - Parsing, scoring e recomendacoes: [parser.py](./app/backend/app/services/parser.py), [scoring.py](./app/backend/app/services/scoring.py), [recommendations.py](./app/backend/app/services/recommendations.py)
-- Orquestracao: [scan_service.py](./app/backend/app/services/scan_service.py)
+- Orquestracao: [scan_service.py](./app/backend/app/services/scan_service.py) (usa context manager `get_db` para segurança de sessão)
 - Regras externas: [rules.json](./app/backend/app/config/rules.json)
 
 ### Variáveis de Ambiente do Backend
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `APPSEC_API_TOKEN` | `changeme-token` | Token de autenticação da API |
+| `APPSEC_API_TOKEN` | `changeme-token` | Token de autenticação da API (deve ser igual ao do frontend) |
 | `APPSEC_DATABASE_URL` | `sqlite:///./app_security_audit.db` | URL do banco de dados |
 | `APPSEC_EXPORT_DIR` | `./exports` | Diretório de exportações |
 | `APPSEC_HOST_FS_PREFIX` | *(vazio)* | Prefixo do sistema de arquivos do host (ex: `/host` no Docker) |
 | `APPSEC_CORS_ORIGINS` | `["http://localhost:5173"]` | Origens permitidas CORS |
 | `APPSEC_DEV_RECREATE_DB` | `false` | Recriar banco automaticamente (só dev) |
+
+> [!IMPORTANT]
+> Utilize o arquivo `.env` na raiz do projeto para configurar essas variáveis de forma centralizada ao usar Docker Compose.
 
 
 ```bash
@@ -109,9 +113,12 @@ Setup local do frontend:
 ```bash
 cd app/frontend
 npm install
-cp .env.example .env
+cp .env.example .env # Configure VITE_API_TOKEN aqui
 npm run dev
 ```
+
+> [!NOTE]
+> No ambiente frontend, as variáveis `VITE_` são fixadas durante o processo de build.
 
 ## G) Testes
 

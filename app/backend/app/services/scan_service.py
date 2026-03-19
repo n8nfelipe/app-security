@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.errors import AgentModeUnavailableError, ScanExecutionError
 from app.core.logging import get_logger
 from app.db.models import Finding, Recommendation, Scan
-from app.db.session import SessionLocal
+from app.db.session import get_db, SessionLocal
 from app.schemas.scan import (
     HistoryItem,
     HistoryResponse,
@@ -29,63 +29,57 @@ logger = get_logger(__name__)
 
 
 def create_scan(payload: ScanCreateRequest) -> ScanCreateResponse:
-    db = SessionLocal()
-    try:
+    with get_db() as db:
         scan_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
         scan = Scan(id=scan_id, mode=payload.mode, target_name=payload.target_name, status="queued", started_at=now)
         db.add(scan)
         db.commit()
         return ScanCreateResponse(scan_id=scan_id, status=scan.status, mode=scan.mode, created_at=now)
-    finally:
-        db.close()
 
 
 def run_scan_background(scan_id: str) -> None:
-    db = SessionLocal()
-    try:
-        scan = db.get(Scan, scan_id)
-        if not scan:
-            return
-        scan.status = "running"
-        db.commit()
-        rules = load_rules(settings.rules_file)
-        snapshot = collect_via_agent(scan.target_name) if scan.mode == "agent" else collect_local_snapshot()
-        findings = build_findings(snapshot, rules)
-        scores = calculate_scores(findings, rules)
-        recommendations = build_recommendations(findings)
-        summary = summarize_snapshot(snapshot, findings)
-        os_release = parser.parse_key_value_file(snapshot["files"]["os_release"].get("content", ""))
+    with get_db() as db:
+        try:
+            scan = db.get(Scan, scan_id)
+            if not scan:
+                return
+            scan.status = "running"
+            db.commit()
+            rules = load_rules(settings.rules_file)
+            snapshot = collect_via_agent(scan.target_name) if scan.mode == "agent" else collect_local_snapshot()
+            findings = build_findings(snapshot, rules)
+            scores = calculate_scores(findings, rules)
+            recommendations = build_recommendations(findings)
+            summary = summarize_snapshot(snapshot, findings)
+            os_release = parser.parse_key_value_file(snapshot["files"]["os_release"].get("content", ""))
 
-        scan.status = "completed"
-        scan.completed_at = datetime.now(timezone.utc)
-        scan.machine_hostname = snapshot["metadata"].get("hostname")
-        scan.machine_id = snapshot["files"]["machine_id"].get("content", "").strip() or None
-        scan.distro = os_release.get("PRETTY_NAME")
-        scan.security_score = scores["security"]
-        scan.performance_score = scores["performance"]
-        scan.overall_score = scores["overall"]
-        scan.score_explanation = scores["explanation"]
-        scan.summary = summary
-        scan.raw_payload = snapshot
+            scan.status = "completed"
+            scan.completed_at = datetime.now(timezone.utc)
+            scan.machine_hostname = snapshot["metadata"].get("hostname")
+            scan.machine_id = snapshot["files"]["machine_id"].get("content", "").strip() or None
+            scan.distro = os_release.get("PRETTY_NAME")
+            scan.security_score = scores["security"]
+            scan.performance_score = scores["performance"]
+            scan.overall_score = scores["overall"]
+            scan.score_explanation = scores["explanation"]
+            scan.summary = summary
+            scan.raw_payload = snapshot
 
-        for finding in findings:
-            db.add(Finding(scan_id=scan_id, **finding))
-        for recommendation in recommendations:
-            db.add(Recommendation(scan_id=scan_id, **recommendation))
-        db.commit()
-        logger.info("scan_completed", extra={"scan_id": scan_id, "overall_score": scores["overall"]})
-    except (ScanExecutionError, AgentModeUnavailableError) as exc:
-        _mark_scan_failed(db, scan_id, str(exc))
-    except Exception as exc:  # pragma: no cover - defensive
-        _mark_scan_failed(db, scan_id, f"Unhandled scan failure: {exc}")
-    finally:
-        db.close()
+            for finding in findings:
+                db.add(Finding(scan_id=scan_id, **finding))
+            for recommendation in recommendations:
+                db.add(Recommendation(scan_id=scan_id, **recommendation))
+            db.commit()
+            logger.info("scan_completed", extra={"scan_id": scan_id, "overall_score": scores["overall"]})
+        except (ScanExecutionError, AgentModeUnavailableError) as exc:
+            _mark_scan_failed(db, scan_id, str(exc))
+        except Exception as exc:  # pragma: no cover - defensive
+            _mark_scan_failed(db, scan_id, f"Unhandled scan failure: {exc}")
 
 
 def get_scan_status(scan_id: str) -> ScanStatusResponse:
-    db = SessionLocal()
-    try:
+    with get_db() as db:
         scan = db.get(Scan, scan_id)
         if not scan:
             raise HTTPException(status_code=404, detail="Scan not found")
@@ -97,13 +91,10 @@ def get_scan_status(scan_id: str) -> ScanStatusResponse:
             completed_at=scan.completed_at,
             error_message=scan.error_message,
         )
-    finally:
-        db.close()
 
 
 def get_scan_result(scan_id: str) -> ScanResultResponse:
-    db = SessionLocal()
-    try:
+    with get_db() as db:
         scan = db.get(Scan, scan_id)
         if not scan:
             raise HTTPException(status_code=404, detail="Scan not found")
@@ -163,13 +154,10 @@ def get_scan_result(scan_id: str) -> ScanResultResponse:
             recommendations=recommendations,
             raw_payload=scan.raw_payload,
         )
-    finally:
-        db.close()
 
 
 def get_scan_history(hostname: str | None, machine_id: str | None, limit: int) -> HistoryResponse:
-    db = SessionLocal()
-    try:
+    with get_db() as db:
         query = db.query(Scan).order_by(Scan.started_at.desc())
         if hostname:
             query = query.filter(Scan.machine_hostname == hostname)
@@ -191,8 +179,6 @@ def get_scan_history(hostname: str | None, machine_id: str | None, limit: int) -
             for scan in query.limit(limit).all()
         ]
         return HistoryResponse(items=items)
-    finally:
-        db.close()
 
 
 def _mark_scan_failed(db, scan_id: str, error_message: str) -> None:

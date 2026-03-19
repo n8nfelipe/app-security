@@ -2,11 +2,16 @@ services:
   backend:
     build:
       context: ./app/backend
+    # privileged + pid/network host são necessários para o collector ler
+    # /proc, /sys e executar ss/systemctl no namespace do host (read-only).
+    # Em produção, considere usar cap_add seletivo se o kernel suportar.
     privileged: true
     network_mode: "host"
     pid: "host"
+    env_file:
+      - .env
     environment:
-      APPSEC_API_TOKEN: changeme-token
+      APPSEC_API_TOKEN: ${APPSEC_API_TOKEN}
       APPSEC_CORS_ORIGINS: '["http://localhost:5173","http://localhost:8080"]'
       APPSEC_DATABASE_URL: sqlite:////srv/data/app_security_audit.db
       APPSEC_EXPORT_DIR: /srv/data/exports
@@ -18,9 +23,11 @@ services:
   frontend:
     build:
       context: ./app/frontend
+    env_file:
+      - .env
     environment:
       VITE_API_BASE_URL: http://localhost:8000/api/v1
-      VITE_API_TOKEN: changeme-token
+      VITE_API_TOKEN: ${VITE_API_TOKEN}
     ports:
       - "8080:80"
     depends_on:

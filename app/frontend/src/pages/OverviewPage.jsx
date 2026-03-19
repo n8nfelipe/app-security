@@ -1,3 +1,4 @@
+import { EmptyState } from "../components/EmptyState";
 import { FindingsTable } from "../components/FindingsTable";
 import { ProcessChart } from "../components/ProcessChart";
 import { ScoreCards } from "../components/ScoreCards";
@@ -6,6 +7,10 @@ import { SeverityChart } from "../components/SeverityChart";
 
 export function OverviewPage({ audit }) {
   const summary = audit.result?.summary;
+
+  if (!audit.result && !audit.loading) {
+    return <EmptyState onStartScan={audit.startScan} loading={audit.loading} />;
+  }
   return (
     <div className="page">
       <header className="hero hero-split">

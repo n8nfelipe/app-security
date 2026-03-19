@@ -14,7 +14,7 @@
 Fluxo principal:
 
 1. Frontend chama `POST /api/v1/scans`.
-2. API autentica por token e cria scan em SQLite.
+2. API autentica por token (sincronizado via `.env`) e cria scan em SQLite.
 3. Background task executa coleta agentless local ou encaminha para agent opcional.
 4. Collector usa whitelist de comandos e leitura de `/etc` e `/proc`.
 5. Scoring engine transforma evidencias em findings e scores.
@@ -24,7 +24,7 @@ Fluxo principal:
 ## Threat model resumido
 
 - Ator: usuario autenticado malicioso.
-  Mitigacao: token simples no MVP, sem interpolar input em subprocess.
+  Mitigacao: token compartilhado forte via `.env`, sem interpolar input em subprocess.
 - Ator: host potencialmente comprometido retorna dados enganosos.
   Mitigacao: coleta defensiva, logs estruturados, nenhuma confianca para executar remediacao.
 - Ator: ataque ao backend via browser.
@@ -33,3 +33,7 @@ Fluxo principal:
   Mitigacao: export gera apenas dados ja persistidos para o scan autenticado.
 - Ator: escalacao via comandos do coletor.
   Mitigacao: whitelist fixa, timeout, captura de saida e sem shell=True.
+- Ator: vazamento de conexão/sessão DB.
+  Mitigacao: uso mandário de context managers (`@contextmanager`) para garantir fechamento de sessões SQLAlchemy.
+- Ator: bypass de auditoria SSH (falsos negativos).
+  Mitigacao: validação via expressão regular robusta para detectar variantes de `PermitRootLogin` e `PasswordAuthentication`.

@@ -178,7 +178,7 @@ def _run_limited_find(args: list[str]) -> dict:
 
 def collect_local_snapshot() -> dict:
     try:
-                snapshot = {
+        snapshot = {
             "metadata": {
                 "hostname": Path(f"{settings.host_fs_prefix}/etc/hostname").read_text(encoding="utf-8", errors="replace").strip()
                 if Path(f"{settings.host_fs_prefix}/etc/hostname").exists()

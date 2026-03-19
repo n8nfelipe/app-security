@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from app.services import parser
@@ -198,7 +199,15 @@ def build_findings(snapshot: dict, rules: dict) -> list[dict]:
 
     sshd_config = files["sshd_config"]["content"]
     if sshd_config:
-        if "PermitRootLogin yes" in sshd_config:
+        # Detecta PermitRootLogin com qualquer valor inseguro (yes, without-password,
+        # prohibit-password). Ignora linhas comentadas e whitespace extra.
+        _root_login_insecure = re.compile(
+            r"^\s*PermitRootLogin\s+(?!no\b)",
+            re.MULTILINE | re.IGNORECASE,
+        )
+        _root_login_match = _root_login_insecure.search(sshd_config)
+        if _root_login_match:
+            evidence_value = _root_login_match.group(0).strip()
             findings.append(
                 _finding(
                     "sec_ssh_root_login",
@@ -207,13 +216,18 @@ def build_findings(snapshot: dict, rules: dict) -> list[dict]:
                     "HIGH",
                     "SSH permite login direto de root",
                     "Login direto de root reduz rastreabilidade e amplia impacto.",
-                    evidence="PermitRootLogin yes",
+                    evidence=f"PermitRootLogin configurado como: {evidence_value!r}",
                     recommendation="Definir PermitRootLogin no e usar sudo controlado.",
                     reference="CIS Debian 5.1",
                     rules=rules,
                 )
             )
-        if "PasswordAuthentication yes" in sshd_config:
+        # Detecta PasswordAuthentication yes (ignora comentários e espaços extras)
+        _pw_auth_insecure = re.compile(
+            r"^\s*PasswordAuthentication\s+yes\b",
+            re.MULTILINE | re.IGNORECASE,
+        )
+        if _pw_auth_insecure.search(sshd_config):
             findings.append(
                 _finding(
                     "sec_ssh_password_auth",
