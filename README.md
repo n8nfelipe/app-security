@@ -1,6 +1,19 @@
 # App Security
 
 Este repositorio contem o produto `App Security Audit`, uma plataforma React + FastAPI para avaliacao read-only de seguranca e performance Linux.
+## 📸 Screenshots
+
+### Visão Geral (Overview)
+![Visão Geral](./docs/assets/overview.png)
+
+### Segurança
+![Segurança](./docs/assets/security.png)
+
+### Performance
+![Performance](./docs/assets/performance.png)
+
+### Recomendações
+![Recomendações](./docs/assets/recommendations.png)
 
 ## A) Produto e requisitos
 
