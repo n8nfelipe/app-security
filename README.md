@@ -13,7 +13,7 @@ Suposicoes explicitas:
 - Auth do MVP usa token compartilhado.
 - Agent mode existe na arquitetura, mas depende de endpoint remoto configurado.
 
-Detalhamento adicional em [product-overview.md](/home/bere/infra/app-security/docs/product-overview.md).
+Detalhamento adicional em [product-overview.md](./docs/product-overview.md).
 
 ## B) Arquitetura e threat model
 
@@ -27,32 +27,32 @@ Visao resumida:
 6. SQLite guarda historico por hostname e machine-id.
 7. Export service produz JSON e PDF.
 
-Threat model resumido em [architecture.md](/home/bere/infra/app-security/docs/architecture.md).
+Threat model resumido em [architecture.md](./docs/architecture.md).
 
 ## C) Modelo de dados
 
-Esquema principal documentado em [data-model.md](/home/bere/infra/app-security/docs/data-model.md) e implementado em [models.py](/home/bere/infra/app-security/app/backend/app/db/models.py).
+Esquema principal documentado em [data-model.md](./docs/data-model.md) e implementado em [models.py](./app/backend/app/db/models.py).
 
 ## D) API
 
-Contrato OpenAPI-like em [api-contract.md](/home/bere/infra/app-security/docs/api-contract.md). Rotas implementadas em [scans.py](/home/bere/infra/app-security/app/backend/app/api/routes/scans.py).
+Contrato OpenAPI-like em [api-contract.md](./docs/api-contract.md). Rotas implementadas em [scans.py](./app/backend/app/api/routes/scans.py).
 
 ## E) Backend
 
 Estrutura principal:
 
-- App FastAPI: [main.py](/home/bere/infra/app-security/app/backend/app/main.py)
-- Config e auth: [config.py](/home/bere/infra/app-security/app/backend/app/core/config.py), [auth.py](/home/bere/infra/app-security/app/backend/app/core/auth.py)
-- Persistencia: [session.py](/home/bere/infra/app-security/app/backend/app/db/session.py), [models.py](/home/bere/infra/app-security/app/backend/app/db/models.py)
-- Coletor read-only: [linux.py](/home/bere/infra/app-security/app/backend/app/collectors/linux.py)
-- Parsing, scoring e recomendacoes: [parser.py](/home/bere/infra/app-security/app/backend/app/services/parser.py), [scoring.py](/home/bere/infra/app-security/app/backend/app/services/scoring.py), [recommendations.py](/home/bere/infra/app-security/app/backend/app/services/recommendations.py)
-- Orquestracao: [scan_service.py](/home/bere/infra/app-security/app/backend/app/services/scan_service.py)
-- Regras externas: [rules.json](/home/bere/infra/app-security/app/backend/app/config/rules.json)
+- App FastAPI: [main.py](./app/backend/app/main.py)
+- Config e auth: [config.py](./app/backend/app/core/config.py), [auth.py](./app/backend/app/core/auth.py)
+- Persistencia: [session.py](./app/backend/app/db/session.py), [models.py](./app/backend/app/db/models.py)
+- Coletor read-only: [linux.py](./app/backend/app/collectors/linux.py)
+- Parsing, scoring e recomendacoes: [parser.py](./app/backend/app/services/parser.py), [scoring.py](./app/backend/app/services/scoring.py), [recommendations.py](./app/backend/app/services/recommendations.py)
+- Orquestracao: [scan_service.py](./app/backend/app/services/scan_service.py)
+- Regras externas: [rules.json](./app/backend/app/config/rules.json)
 
 Setup local do backend:
 
 ```bash
-cd /home/bere/infra/app-security/app/backend
+cd app/backend
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
@@ -75,16 +75,16 @@ uvicorn app.main:app --reload
 
 Estrutura principal:
 
-- Shell e rotas: [App.jsx](/home/bere/infra/app-security/app/frontend/src/App.jsx)
-- Estado e API client: [useAuditData.js](/home/bere/infra/app-security/app/frontend/src/lib/useAuditData.js), [api.js](/home/bere/infra/app-security/app/frontend/src/lib/api.js)
-- Paginas: [OverviewPage.jsx](/home/bere/infra/app-security/app/frontend/src/pages/OverviewPage.jsx), [SecurityPage.jsx](/home/bere/infra/app-security/app/frontend/src/pages/SecurityPage.jsx), [PerformancePage.jsx](/home/bere/infra/app-security/app/frontend/src/pages/PerformancePage.jsx), [RecommendationsPage.jsx](/home/bere/infra/app-security/app/frontend/src/pages/RecommendationsPage.jsx), [HistoryPage.jsx](/home/bere/infra/app-security/app/frontend/src/pages/HistoryPage.jsx)
-- Componentes: [ScoreCards.jsx](/home/bere/infra/app-security/app/frontend/src/components/ScoreCards.jsx), [FindingsTable.jsx](/home/bere/infra/app-security/app/frontend/src/components/FindingsTable.jsx), [RecommendationList.jsx](/home/bere/infra/app-security/app/frontend/src/components/RecommendationList.jsx), [ExportPanel.jsx](/home/bere/infra/app-security/app/frontend/src/components/ExportPanel.jsx)
-- Estilo responsivo: [app.css](/home/bere/infra/app-security/app/frontend/src/styles/app.css)
+- Shell e rotas: [App.jsx](./app/frontend/src/App.jsx)
+- Estado e API client: [useAuditData.js](./app/frontend/src/lib/useAuditData.js), [api.js](./app/frontend/src/lib/api.js)
+- Paginas: [OverviewPage.jsx](./app/frontend/src/pages/OverviewPage.jsx), [SecurityPage.jsx](./app/frontend/src/pages/SecurityPage.jsx), [PerformancePage.jsx](./app/frontend/src/pages/PerformancePage.jsx), [RecommendationsPage.jsx](./app/frontend/src/pages/RecommendationsPage.jsx), [HistoryPage.jsx](./app/frontend/src/pages/HistoryPage.jsx)
+- Componentes: [ScoreCards.jsx](./app/frontend/src/components/ScoreCards.jsx), [FindingsTable.jsx](./app/frontend/src/components/FindingsTable.jsx), [RecommendationList.jsx](./app/frontend/src/components/RecommendationList.jsx), [ExportPanel.jsx](./app/frontend/src/components/ExportPanel.jsx)
+- Estilo responsivo: [app.css](./app/frontend/src/styles/app.css)
 
 Setup local do frontend:
 
 ```bash
-cd /home/bere/infra/app-security/app/frontend
+cd app/frontend
 npm install
 cp .env.example .env
 npm run dev
@@ -95,36 +95,35 @@ npm run dev
 Backend:
 
 ```bash
-cd /home/bere/infra/app-security/app/backend
+cd app/backend
 pytest
 ```
 
 Frontend:
 
 ```bash
-cd /home/bere/infra/app-security/app/frontend
+cd app/frontend
 npm test
 ```
 
 Arquivos de teste:
 
-- [test_parser.py](/home/bere/infra/app-security/app/backend/tests/test_parser.py)
-- [test_scoring.py](/home/bere/infra/app-security/app/backend/tests/test_scoring.py)
-- [ScoreCards.test.jsx](/home/bere/infra/app-security/app/frontend/src/components/ScoreCards.test.jsx)
-- [FindingsTable.test.jsx](/home/bere/infra/app-security/app/frontend/src/components/FindingsTable.test.jsx)
+- [test_parser.py](./app/backend/tests/test_parser.py)
+- [test_scoring.py](./app/backend/tests/test_scoring.py)
+- [ScoreCards.test.jsx](./app/frontend/src/components/ScoreCards.test.jsx)
+- [FindingsTable.test.jsx](./app/frontend/src/components/FindingsTable.test.jsx)
 
 ## H) Docker Compose para subir tudo
 
 ```bash
-cd /home/bere/infra/app-security
 docker compose up --build
 ```
 
 Arquivos:
 
-- Compose: [docker-compose.yml](/home/bere/infra/app-security/docker-compose.yml)
-- Backend image: [Dockerfile](/home/bere/infra/app-security/app/backend/Dockerfile)
-- Frontend image: [Dockerfile](/home/bere/infra/app-security/app/frontend/Dockerfile)
+- Compose: [docker-compose.yml](./docker-compose.yml)
+- Backend image: [Dockerfile](./app/backend/Dockerfile)
+- Frontend image: [Dockerfile](./app/frontend/Dockerfile)
 
 Backend em `http://localhost:8000` e frontend em `http://localhost:8080`.
 
@@ -134,10 +133,10 @@ Nota operacional: o `docker compose` sobe a stack para demonstracao e desenvolvi
 
 Contribuicao:
 
-1. Crie branch curta e mantenha regras/thresholds em [rules.json](/home/bere/infra/app-security/app/backend/app/config/rules.json).
+1. Crie branch curta e mantenha regras/thresholds em [rules.json](./app/backend/app/config/rules.json).
 2. Nao adicione comandos destrutivos nem shell interpolation no coletor.
 3. Todo novo check precisa de teste de parsing ou scoring.
-4. Documente a justificativa da coleta em [collection-commands.md](/home/bere/infra/app-security/docs/collection-commands.md).
+4. Documente a justificativa da coleta em [collection-commands.md](./docs/collection-commands.md).
 
 ## J) Checklist de go-live
 
@@ -153,9 +152,9 @@ Contribuicao:
 
 ## Artefatos de planejamento
 
-- Produto: [product-overview.md](/home/bere/infra/app-security/docs/product-overview.md)
-- Arquitetura: [architecture.md](/home/bere/infra/app-security/docs/architecture.md)
-- Modelo de dados: [data-model.md](/home/bere/infra/app-security/docs/data-model.md)
-- Backlog e roadmap: [backlog-roadmap.md](/home/bere/infra/app-security/docs/backlog-roadmap.md)
-- API: [api-contract.md](/home/bere/infra/app-security/docs/api-contract.md)
-- Comandos de coleta: [collection-commands.md](/home/bere/infra/app-security/docs/collection-commands.md)
+- Produto: [product-overview.md](./docs/product-overview.md)
+- Arquitetura: [architecture.md](./docs/architecture.md)
+- Modelo de dados: [data-model.md](./docs/data-model.md)
+- Backlog e roadmap: [backlog-roadmap.md](./docs/backlog-roadmap.md)
+- API: [api-contract.md](./docs/api-contract.md)
+- Comandos de coleta: [collection-commands.md](./docs/collection-commands.md)
