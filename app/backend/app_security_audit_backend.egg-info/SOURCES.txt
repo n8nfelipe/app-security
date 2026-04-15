@@ -31,6 +31,8 @@ app_security_audit_backend.egg-info/SOURCES.txt
 app_security_audit_backend.egg-info/dependency_links.txt
 app_security_audit_backend.egg-info/requires.txt
 app_security_audit_backend.egg-info/top_level.txt
+tests/test_db_context.py
 tests/test_firewall_scoring.py
 tests/test_parser.py
 tests/test_scoring.py
+tests/test_ssh_regex_check.py

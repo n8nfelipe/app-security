@@ -36,7 +36,7 @@ Environment=\"APPSEC_API_TOKEN=changeme-token\"
 Environment=\"APPSEC_CORS_ORIGINS=['http://localhost:5173','http://localhost:8080']\"
 Environment=\"APPSEC_DATABASE_URL=sqlite:///$BACKEND_DIR/data/app_security_audit.db\"
 Environment=\"APPSEC_EXPORT_DIR=$BACKEND_DIR/data/exports\"
-ExecStart=$BACKEND_DIR/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001
+ExecStart=$BACKEND_DIR/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
 Restart=always
 
 [Install]
