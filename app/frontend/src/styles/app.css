@@ -717,6 +717,12 @@ select {
   gap: 14px;
 }
 
+@media (max-width: 1400px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .metric-tile {
   border: 1px solid rgba(124, 167, 255, 0.12);
   background: var(--panel-strong);
@@ -932,6 +938,14 @@ td {
 .muted,
 .cell-detail {
   color: var(--muted);
+}
+
+code {
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
 .fix-guide {

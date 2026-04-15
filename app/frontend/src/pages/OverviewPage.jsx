@@ -62,6 +62,18 @@ export function OverviewPage({ audit }) {
               <span>Findings criticos</span>
               <strong>{summary?.critical_findings ?? "--"}</strong>
             </div>
+            <div className="metric-tile">
+              <span>Containers Docker</span>
+              <strong>{summary?.docker_containers ?? "--"}</strong>
+            </div>
+            <div className="metric-tile">
+              <span>Redes Docker</span>
+              <strong>{summary?.docker_networks ?? "--"}</strong>
+            </div>
+            <div className="metric-tile">
+              <span>Conexoes TCP</span>
+              <strong>{summary?.established_connections ?? "--"}</strong>
+            </div>
           </div>
         </article>
         <ProcessChart processes={summary?.top_processes ?? []} />

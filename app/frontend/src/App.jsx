@@ -7,6 +7,7 @@ import { SecurityPage } from "./pages/SecurityPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { RecommendationsPage } from "./pages/RecommendationsPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { NetworkPage } from "./pages/NetworkPage";
 import { useAuditData } from "./lib/useAuditData";
 import { useTheme } from "./lib/useTheme";
 
@@ -14,6 +15,7 @@ const navItems = [
   { to: "/", label: "Visao geral" },
   { to: "/security", label: "Seguranca" },
   { to: "/performance", label: "Performance" },
+  { to: "/network", label: "Rede" },
   { to: "/recommendations", label: "Recomendacoes" },
   { to: "/history", label: "Historico" },
 ];
@@ -86,6 +88,7 @@ export default function App() {
           <Route path="/" element={<OverviewPage audit={audit} />} />
           <Route path="/security" element={<SecurityPage audit={audit} />} />
           <Route path="/performance" element={<PerformancePage audit={audit} />} />
+          <Route path="/network" element={<NetworkPage audit={audit} />} />
           <Route path="/recommendations" element={<RecommendationsPage audit={audit} />} />
           <Route path="/history" element={<HistoryPage audit={audit} />} />
         </Routes>

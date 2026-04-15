@@ -129,6 +129,50 @@ REMEDIATION_GUIDES = {
             "Valide estabilidade do servico afetado durante o pico de carga.",
         ],
     },
+    "sec_docker_socket_world_writable": {
+        "steps": [
+            "Corriga as permissoes do socket Docker com `chmod 660 /var/run/docker.sock`.",
+            "Garanta que apenas usuarios autorizados belongcam ao grupo docker.",
+            "Se necessario, remova usuarios do grupo docker que nao precisam de acesso.",
+        ],
+        "verify": [
+            "Confirme que `ls -la /var/run/docker.sock` mostra permissao 660 e grupo docker.",
+            "Valide que apenas usuarios autorizados conseguem executar `docker ps`.",
+        ],
+    },
+    "sec_docker_privileged_container": {
+        "steps": [
+            "Reimplemente o container sem a flag `--privileged`.",
+            "Use capacidades especificas (CAP_NET_RAW, CAP_SYS_ADMIN, etc.) se necessario.",
+            "Considere usar rootless Docker ou Podman para isolamento adicional.",
+        ],
+        "verify": [
+            "Execute `docker inspect` e confirme que Privileged = false.",
+            "Teste acesso a recursos sensiveis pelo container.",
+        ],
+    },
+    "sec_docker_exposed_ports": {
+        "steps": [
+            "Revise as portas expostas e remova as desnecessarias.",
+            "Use redes Docker internas para comunicacao entre containers.",
+            "Implemente proxy reverso para entrada controlada.",
+        ],
+        "verify": [
+            "Execute `docker ps` e confirme apenas portas essenciais expostas.",
+            "Teste conectividade externa apenas nas portas permitidas.",
+        ],
+    },
+    "sec_many_established_connections": {
+        "steps": [
+            "Identifique os processos com muitas conexoes estabelecidas.",
+            "Revise connections persistentes e limpa releases desnecessarios.",
+            "Implemente rate limiting e temporizacao apropriada.",
+        ],
+        "verify": [
+            "Execute `ss -tan` e confirme reducao de conexoes persistentes.",
+            "Monitore metricas de rede para validar estabilidade.",
+        ],
+    },
 }
 
 
@@ -498,7 +542,92 @@ def build_findings(snapshot: dict, rules: dict) -> list[dict]:
             )
         )
 
+    _docker_checks(snapshot, commands, findings, rules)
+
     return findings
+
+
+def _docker_checks(snapshot: dict, commands: dict, findings: list[dict], rules: dict) -> None:
+    docker_socket = commands.get("docker_socket", {}).get("stdout", "")
+    docker_ps = commands.get("docker_ps", {}).get("stdout", "")
+    docker_info = commands.get("docker_info", {}).get("stdout", "")
+
+    if docker_socket:
+        for line in docker_socket.splitlines():
+            if "docker.sock" in line and "srw-rw-rw-" in line:
+                findings.append(
+                    _finding(
+                        "sec_docker_socket_world_writable",
+                        "security",
+                        "container",
+                        "CRIT",
+                        "Socket Docker com permissao world-writable",
+                        "Acesso irrestrito ao socket Docker permite escape de container.",
+                        evidence=line.strip(),
+                        recommendation="Corrigir permissao para 660 e restringir grupo.",
+                        reference="Docker socket security",
+                        rules=rules,
+                    )
+                )
+                break
+
+    if docker_ps and docker_ps.strip():
+        try:
+            containers = parser.parse_docker_ps(docker_ps)
+            for container in containers:
+                if container.get("Privileged", "").lower() == "true":
+                    findings.append(
+                        _finding(
+                            "sec_docker_privileged_container",
+                            "security",
+                            "container",
+                            "CRIT",
+                            f"Container '{container.get('Names', 'unknown')}' privilegiado",
+                            "Container privilegiado tem acesso completo ao host.",
+                            evidence=f"Container {container.get('Names')} (ID: {container.get('ID')})",
+                            recommendation="Remover flag --privileged e usar capacidades especificas.",
+                            reference="Docker privileged containers",
+                            rules=rules,
+                        )
+                    )
+
+                ports = container.get("Ports", "")
+                if ports and "," in ports:
+                    findings.append(
+                        _finding(
+                            "sec_docker_exposed_ports",
+                            "security",
+                            "container",
+                            "MED",
+                            f"Container '{container.get('Names', 'unknown')}' com multiplas portas expostas",
+                            "Multiplas portas expostas aumentam superficie de ataque.",
+                            evidence=f"Container {container.get('Names')}: {ports}",
+                            recommendation="Revisar portas expostas e usar rede interna.",
+                            reference="Docker network exposure",
+                            rules=rules,
+                        )
+                    )
+        except Exception:
+            pass
+
+    established = commands.get("established_connections", {}).get("stdout", "")
+    if established:
+        conn_count = sum(1 for line in established.splitlines() if "ESTAB" in line)
+        if conn_count > 100:
+            findings.append(
+                _finding(
+                    "sec_many_established_connections",
+                    "security",
+                    "network",
+                    "MED",
+                    "Muitas conexoes TCP estabelecidas",
+                    "Alto numero de conexoes pode indicar vazamento ou attaque.",
+                    evidence=f"{conn_count} conexoes ESTAB",
+                    recommendation="Identificar processos e limpar conexoes persistentes.",
+                    reference="TCP connection baseline",
+                    rules=rules,
+                )
+            )
 
 
 def calculate_scores(findings: list[dict], rules: dict) -> dict:
@@ -547,6 +676,45 @@ def summarize_snapshot(snapshot: dict, findings: list[dict]) -> dict:
     sockets = parser.parse_ss_listening(commands["listening_ports"].get("stdout", ""))
     top_processes = parser.parse_ps_table(commands["cpu_processes"].get("stdout", ""))
 
+    docker_containers = []
+    docker_networks = []
+    established_connections = 0
+
+    docker_ps_raw = commands.get("docker_ps", {}).get("stdout", "")
+    if docker_ps_raw:
+        docker_containers = parser.parse_docker_ps(docker_ps_raw)
+
+    docker_network_raw = commands.get("docker_network", {}).get("stdout", "")
+    if docker_network_raw:
+        docker_networks = parser.parse_docker_ps(docker_network_raw)
+
+    established_raw = commands.get("established_connections", {}).get("stdout", "")
+    if established_raw:
+        established_connections = sum(1 for line in established_raw.splitlines() if "ESTAB" in line)
+
+    listening_ports_data = [
+        {
+            "protocol": sock.get("proto", ""),
+            "state": sock.get("state", ""),
+            "address": sock.get("local_address", ""),
+        }
+        for sock in sockets
+    ]
+
+    established_list = []
+    established_raw = commands.get("established_connections", {}).get("stdout", "")
+    if established_raw:
+        for line in established_raw.splitlines():
+            if "ESTAB" in line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    established_list.append({
+                        "protocol": parts[0],
+                        "local_address": parts[3] if len(parts) > 3 else "",
+                        "remote_address": parts[4] if len(parts) > 4 else "",
+                        "state": "ESTAB",
+                    })
+
     return {
         "host": snapshot["metadata"]["hostname"],
         "human_users": len([user for user in passwd_entries if user["uid"] >= 1000]),
@@ -554,6 +722,13 @@ def summarize_snapshot(snapshot: dict, findings: list[dict]) -> dict:
         "critical_findings": len([finding for finding in findings if finding["severity"] in {"HIGH", "CRIT"}]),
         "disk_pressure_mounts": [row for row in disk_rows if row["use_percent"] >= 85],
         "top_processes": top_processes[:5],
+        "docker_containers": len(docker_containers),
+        "docker_networks": len(docker_networks),
+        "established_connections": established_connections,
+        "network_details": {
+            "listening_ports": listening_ports_data[:50],
+            "established_connections": established_list[:50],
+        },
     }
 
 

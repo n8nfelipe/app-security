@@ -25,6 +25,7 @@ class CommandSpec:
 
 COMMANDS: dict[str, CommandSpec] = {
     "listening_ports": CommandSpec("listening_ports", ["ss", "-tulpen"], "Inventariar portas em escuta."),
+    "established_connections": CommandSpec("established_connections", ["ss", "-tan"], "Listar conexoes TCP estabelecidas."),
     "systemd_units": CommandSpec(
         "systemd_units",
         ["systemctl", "list-unit-files", "--type=service", "--no-pager", "--no-legend"],
@@ -52,6 +53,8 @@ COMMANDS: dict[str, CommandSpec] = {
     "disk_usage": CommandSpec("disk_usage", ["df", "-h"], "Avaliar uso de disco."),
     "inode_usage": CommandSpec("inode_usage", ["df", "-i"], "Avaliar uso de inodes."),
     "ip_link_stats": CommandSpec("ip_link_stats", ["ip", "-s", "link"], "Verificar erros de rede."),
+    "ip_route": CommandSpec("ip_route", ["ip", "route"], "Listar tabela de roteamento."),
+    "ip_addr": CommandSpec("ip_addr", ["ip", "addr"], "Listar enderecos de interface."),
     "dns_config": CommandSpec("dns_config", ["resolvectl", "status"], "Ler configuracao DNS ativa."),
     "systemd_analyze": CommandSpec(
         "systemd_analyze",
@@ -59,6 +62,12 @@ COMMANDS: dict[str, CommandSpec] = {
         "Identificar servicos lentos no boot.",
     ),
     "updates_debian": CommandSpec("updates_debian", ["apt", "list", "--upgradable"], "Identificar updates pendentes."),
+    "docker_ps": CommandSpec("docker_ps", ["docker", "ps", "-a", "--format", "{{json}}"], "Listar containers Docker."),
+    "docker_images": CommandSpec("docker_images", ["docker", "images", "--format", "{{json}}"], "Listar imagens Docker."),
+    "docker_network": CommandSpec("docker_network", ["docker", "network", "ls", "--format", "{{json}}"], "Listar redes Docker."),
+    "docker_volume": CommandSpec("docker_volume", ["docker", "volume", "ls", "--format", "{{json}}"], "Listar volumes Docker."),
+    "docker_info": CommandSpec("docker_info", ["docker", "info", "--format", "{{json}}"], "Informacoes gerais do Docker."),
+    "docker_socket": CommandSpec("docker_socket", ["ls", "-la", "/var/run/docker.sock"], "Verificar permissao do socket Docker."),
 }
 
 

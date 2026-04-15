@@ -2,11 +2,18 @@ import { useMemo, useState } from "react";
 
 export function FindingsTable({ findings, domain }) {
   const [severity, setSeverity] = useState("ALL");
+  const [showDomain, setShowDomain] = useState("ALL");
   const rows = useMemo(() => {
     return findings
       .filter((item) => (domain ? item.domain === domain : true))
+      .filter((item) => (showDomain === "ALL" ? true : item.domain === showDomain))
       .filter((item) => (severity === "ALL" ? true : item.severity === severity));
-  }, [domain, findings, severity]);
+  }, [domain, findings, severity, showDomain]);
+
+  const domains = useMemo(() => {
+    const unique = [...new Set(findings.map((item) => item.domain))];
+    return unique.sort();
+  }, [findings]);
 
   return (
     <section className="panel">
@@ -17,6 +24,12 @@ export function FindingsTable({ findings, domain }) {
         </div>
         <div className="investigation-controls">
           <span className="result-count">{rows.length} itens</span>
+          <select value={showDomain} onChange={(event) => setShowDomain(event.target.value)}>
+            <option value="ALL">Todos dominios</option>
+            {domains.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
           <select value={severity} onChange={(event) => setSeverity(event.target.value)}>
             <option value="ALL">Todas severidades</option>
             <option value="CRIT">CRIT</option>

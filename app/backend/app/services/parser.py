@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 
 
@@ -135,3 +136,24 @@ def count_lines(content: str) -> int:
 
 def any_match(values: Iterable[str], predicate: str) -> bool:
     return any(predicate in value for value in values)
+
+
+def parse_docker_ps(content: str) -> list[dict]:
+    containers: list[dict] = []
+    for line in content.splitlines():
+        if not line.strip():
+            continue
+        try:
+            containers.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return containers
+
+
+def parse_docker_info(content: str) -> dict:
+    if not content.strip():
+        return {}
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return {}
