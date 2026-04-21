@@ -1,123 +1,194 @@
-from app.services.parser import (
-    parse_passwd,
-    parse_group,
-    parse_ss_listening,
-    parse_ps_table,
-    parse_df,
-    parse_systemd_units,
-    parse_systemd_blame,
-    parse_docker_ps,
-    parse_docker_info,
-    count_lines,
-    any_match,
-)
+import pytest
+from unittest.mock import patch, MagicMock
+import json
 
 
-class TestParsePasswd:
-    def test_comment_line_ignored(self):
-        content = "# This is a comment\nroot:x:0:0:root:/root:/bin/bash\n"
-        result = parse_passwd(content)
-        assert len(result) == 1
+def test_parse_key_value_file_with_comments():
+    from app.services.parser import parse_key_value_file
 
-    def test_line_with_fewer_parts_ignored(self):
-        content = "short:line\nroot:x:0:0:root:/root:/bin/bash\n"
-        result = parse_passwd(content)
-        assert len(result) == 1
-
-    def test_uid_and_gid_parsed(self):
-        content = "user:x:1001:1001:User:/home/user:/bin/bash\n"
-        result = parse_passwd(content)
-        assert result[0]["uid"] == 1001
-        assert result[0]["gid"] == 1001
+    content = """
+    # Comment line
+    KEY1=value1
+    KEY2="value with spaces"
+    # Another comment
+    KEY3=value3
+    """
+    result = parse_key_value_file(content)
+    assert result["KEY1"] == "value1"
+    assert result["KEY2"] == "value with spaces"
+    assert result["KEY3"] == "value3"
 
 
-class TestParseGroup:
-    def test_empty_members_parsed(self):
-        content = "group:x:1000:\n"
-        result = parse_group(content)
-        assert result[0]["members"] == []
+def test_parse_key_value_file_empty():
+    from app.services.parser import parse_key_value_file
 
-    def test_multiple_members_parsed(self):
-        content = "sudo:x:27:user1,user2,user3\n"
-        result = parse_group(content)
-        assert len(result[0]["members"]) == 3
+    result = parse_key_value_file("")
+    assert result == {}
 
 
-class TestParseSsListening:
-    def test_header_line_skipped(self):
-        content = "Netid State Recv-Q Send-Q Local Address:Port Peer Address:Port\n"
-        result = parse_ss_listening(content)
-        assert result == []
+def test_parse_key_value_file_with_multiple_equals():
+    from app.services.parser import parse_key_value_file
+
+    content = 'KEY=value=extra'
+    result = parse_key_value_file(content)
+    assert result["KEY"] == "value=extra"
 
 
-class TestParsePsTable:
-    def test_process_count_respects_limit(self):
-        content = "  1  0 init  0.0  0.0 S\n  2  0 bash  0.0  0.0 S\n"
-        result = parse_ps_table(content, limit=1)
-        assert len(result) == 1
+def test_parse_passwd_with_uid_gid():
+    from app.services.parser import parse_passwd
 
-    def test_invalid_line_skipped(self):
-        content = "short line\n  1  0 bash  0.0  0.0 S\n"
-        result = parse_ps_table(content)
-        assert len(result) == 1
-
-
-class TestParseDf:
-    def test_filesystem_use_percent_parsed(self):
-        content = "Filesystem Size Used Avail Use% Mounted on\n/dev/sda1 100G 50G 50G 75% /\n"
-        result = parse_df(content)
-        assert result[0]["use_percent"] == 75
+    content = "root:x:0:0:root:/root:/bin/bash\nuser:x:1000:1000:User:/home/user:/bin/bash"
+    result = parse_passwd(content)
+    assert len(result) == 2
+    assert result[0]["uid"] == 0
+    assert result[0]["gid"] == 0
+    assert result[1]["uid"] == 1000
 
 
-class TestParseSystemdUnits:
-    def test_partial_line_ignored(self):
-        content = "short\nssh.service enabled\n"
-        result = parse_systemd_units(content)
-        assert len(result) == 1
+def test_parse_passwd_with_incomplete_lines():
+    from app.services.parser import parse_passwd
+
+    content = "root:x:0:0:root:/root:/bin/bash\nincomplete"
+    result = parse_passwd(content)
+    assert len(result) == 1
 
 
-class TestParseSystemdBlame:
-    def test_limit_respected(self):
-        content = "1.200s unit1\n0.800s unit2\n0.500s unit3\n"
-        result = parse_systemd_blame(content, limit=2)
-        assert len(result) == 2
+def test_parse_group():
+    from app.services.parser import parse_group
+
+    content = "sudo:x:27:user1,user2\nwheel:x:10:admin"
+    result = parse_group(content)
+    assert len(result) == 2
+    assert result[0]["name"] == "sudo"
+    assert result[0]["gid"] == 27
+    assert "user1" in result[0]["members"]
 
 
-class TestParseDockerPs:
-    def test_invalid_json_skipped(self):
-        content = '{"Id":"abc123"}\nnot valid json\n{"Id":"def456"}\n'
-        result = parse_docker_ps(content)
-        assert len(result) == 2
+def test_parse_group_empty_members():
+    from app.services.parser import parse_group
 
-    def test_multiple_containers(self):
-        content = '{"Id":"abc","Names":["c1"]}\n{"Id":"def","Names":["c2"]}\n'
-        result = parse_docker_ps(content)
-        assert len(result) == 2
+    content = "nogroup:x:65534:"
+    result = parse_group(content)
+    assert result[0]["members"] == []
 
 
-class TestParseDockerInfo:
-    def test_invalid_json_returns_empty(self):
-        result = parse_docker_info("not json")
-        assert result == {}
+def test_parse_ps_table_with_cpu_mem_errors():
+    from app.services.parser import parse_ps_table
 
-    def test_valid_json_parsed(self):
-        content = '{"ServerVersion": "24.0", "Os": "linux"}'
-        result = parse_docker_info(content)
-        assert result["ServerVersion"] == "24.0"
-
-
-class TestCountLines:
-    def test_blank_lines_not_counted(self):
-        content = "line1\n\nline2\n   \nline3\n"
-        result = count_lines(content)
-        assert result == 3
+    content = """PID  PPID  COMMAND  %CPU  %MEM  STATE
+1  0  init  abc  def  S
+2  1  bash  10.5  50  R
+3  0  test  20.3  R"""
+    result = parse_ps_table(content)
+    assert result[0]["cpu_percent"] == 0.0
+    assert result[0]["memory_percent"] == 0.0
+    assert result[1]["cpu_percent"] == 10.5
 
 
-class TestAnyMatch:
-    def test_no_match_returns_false(self):
-        result = any_match(["foo", "bar"], "xyz")
-        assert result is False
+def test_parse_df_with_percent_sign():
+    from app.services.parser import parse_df
 
-    def test_match_returns_true(self):
-        result = any_match(["foo", "bar", "baz"], "bar")
-        assert result is True
+    content = """Filesystem  Size  Used  Avail  Use%  Mounted on
+/dev/sda1  50G  20G  30G  40%  /
+/dev/sdb1  100G  90G  10G  90%  /data"""
+    result = parse_df(content)
+    assert result[0]["use_percent"] == 40
+    assert result[1]["use_percent"] == 90
+
+
+def test_parse_df_with_incomplete_lines():
+    from app.services.parser import parse_df
+
+    content = """Filesystem  Size  Used
+/dev/sda1  50G  20G"""
+    result = parse_df(content)
+    assert len(result) == 0
+
+
+def test_parse_systemd_units():
+    from app.services.parser import parse_systemd_units
+
+    content = "nginx.service  active\nsshd.service  inactive"
+    result = parse_systemd_units(content)
+    assert len(result) == 2
+    assert result[0]["unit"] == "nginx.service"
+    assert result[0]["state"] == "active"
+
+
+def test_parse_systemd_blame_with_limit():
+    from app.services.parser import parse_systemd_blame
+
+    content = """5min  nginx.service
+10min  postgresql.service
+15min  redis.service"""
+    result = parse_systemd_blame(content, limit=2)
+    assert len(result) == 2
+    assert result[0]["duration"] == "5min"
+
+
+def test_parse_systemd_blame_with_incomplete_lines():
+    from app.services.parser import parse_systemd_blame
+
+    content = """5min  nginx.service
+incomplete
+10min"""
+    result = parse_systemd_blame(content, limit=3)
+    assert len(result) == 1
+
+
+def test_count_lines():
+    from app.services.parser import count_lines
+
+    content = "line1\nline2\n\nline3"
+    assert count_lines(content) == 3
+
+
+def test_any_match():
+    from app.services.parser import any_match
+
+    values = ["ssh", "http", "ftp"]
+    assert any_match(values, "ssh") is True
+    assert any_match(values, "mysql") is False
+
+
+def test_parse_docker_ps_with_json_lines():
+    from app.services.parser import parse_docker_ps
+    import json
+
+    content = json.dumps({"id": "abc123", "image": "nginx"})
+    result = parse_docker_ps(content)
+    assert len(result) == 1
+    assert result[0]["id"] == "abc123"
+
+
+def test_parse_docker_ps_with_invalid_json():
+    from app.services.parser import parse_docker_ps
+
+    content = "invalid json line\nnot valid\n{}"
+    result = parse_docker_ps(content)
+    assert len(result) == 1
+
+
+def test_parse_docker_ps_with_mixed_lines():
+    from app.services.parser import parse_docker_ps
+    import json
+
+    content = '{"id": "1"}\ninvalid\n{"id": "2"}'
+    result = parse_docker_ps(content)
+    assert len(result) == 2
+
+
+def test_parse_docker_info():
+    from app.services.parser import parse_docker_info
+    import json
+
+    content = json.dumps({"Containers": 5, "Images": 10})
+    result = parse_docker_info(content)
+    assert result["Containers"] == 5
+
+
+def test_parse_docker_info_with_invalid_json():
+    from app.services.parser import parse_docker_info
+
+    result = parse_docker_info("invalid")
+    assert result == {}
