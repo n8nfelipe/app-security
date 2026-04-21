@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import patch, MagicMock
 from app.services.scoring import load_rules, calculate_scores
 import json
 import tempfile

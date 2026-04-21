@@ -1,6 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from app.core.config import Settings, settings
+from app.core.config import Settings
 
 
 def test_settings_defaults():

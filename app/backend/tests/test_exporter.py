@@ -1,6 +1,5 @@
 import pytest
 from unittest.mock import patch, MagicMock, mock_open
-from fastapi import HTTPException
 
 
 def test_export_scan_to_json_not_found():

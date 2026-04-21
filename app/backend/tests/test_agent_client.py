@@ -1,6 +1,4 @@
-import pytest
 from unittest.mock import patch, MagicMock
-import httpx
 
 
 @patch("app.services.agent_client.httpx.Client")

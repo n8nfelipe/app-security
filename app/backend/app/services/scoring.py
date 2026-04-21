@@ -550,7 +550,7 @@ def build_findings(snapshot: dict, rules: dict) -> list[dict]:
 def _docker_checks(snapshot: dict, commands: dict, findings: list[dict], rules: dict) -> None:
     docker_socket = commands.get("docker_socket", {}).get("stdout", "")
     docker_ps = commands.get("docker_ps", {}).get("stdout", "")
-    docker_info = commands.get("docker_info", {}).get("stdout", "")
+    commands.get("docker_info", {}).get("stdout", "")
 
     if docker_socket:
         for line in docker_socket.splitlines():

@@ -1,8 +1,6 @@
-import pytest
-from unittest.mock import patch, MagicMock
 
 def test_config_settings():
-    from app.core.config import Settings, settings
+    from app.core.config import settings
     assert settings.app_name == "App Security Audit"
     assert settings.default_scan_mode == "agentless"
 

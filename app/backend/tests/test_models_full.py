@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import patch, MagicMock, mock_open
 from app.db import models
 
 
@@ -100,7 +98,7 @@ def test_scan_relationships():
 
 
 def test_scan_with_recommendations():
-    scan = models.Scan(
+    models.Scan(
         id="test-rec-123",
         mode="agentless",
         target_name="localhost",

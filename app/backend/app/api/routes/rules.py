@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from app.core.auth import require_api_token
 from pydantic import BaseModel
 from typing import List, Optional

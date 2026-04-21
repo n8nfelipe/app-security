@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import patch, MagicMock
 from app.services.recommendations import (
     build_recommendations,
     PRIORITY_MAP,

@@ -1,8 +1,5 @@
-import pytest
 from unittest.mock import patch, MagicMock
-from pathlib import Path
 from app.collectors.linux import (
-    CommandSpec,
     TEXT_FILES,
     DIRECTORIES,
     COMMANDS,

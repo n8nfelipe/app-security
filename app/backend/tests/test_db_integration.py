@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import patch, MagicMock
 from app.db.session import SessionLocal
 
 

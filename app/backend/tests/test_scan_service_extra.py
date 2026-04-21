@@ -1,12 +1,9 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from datetime import datetime, timezone
 from app.services.scan_service import _mark_scan_failed
 
 
 def test_mark_scan_failed_with_message():
-    from app.db.models import Scan
-    from app.services.scan_service import _mark_scan_failed
     
     mock_db = MagicMock()
     mock_scan = MagicMock()
@@ -21,7 +18,6 @@ def test_mark_scan_failed_with_message():
 
 
 def test_mark_scan_failed_nonexistent():
-    from app.services.scan_service import _mark_scan_failed
     
     mock_db = MagicMock()
     mock_db.get.return_value = None

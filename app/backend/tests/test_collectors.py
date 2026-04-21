@@ -1,16 +1,11 @@
-import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 from app.collectors.linux import (
     CommandSpec,
-    TEXT_FILES,
-    DIRECTORIES,
-    COMMANDS,
     _safe_read_text,
     _safe_read_directory,
     _run_command,
     _run_limited_find,
-    collect_local_snapshot,
 )
 
 
@@ -160,7 +155,6 @@ class TestRunCommand:
     @patch("app.collectors.linux.shutil.which")
     @patch("app.collectors.linux.settings")
     def test_run_command_with_chroot(self, mock_settings, mock_which, mock_run):
-        import subprocess
         mock_settings.host_fs_prefix = "/mnt"
         mock_which.return_value = "/usr/sbin/chroot"
         

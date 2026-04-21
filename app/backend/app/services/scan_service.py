@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.errors import AgentModeUnavailableError, ScanExecutionError
 from app.core.logging import get_logger
 from app.db.models import Finding, Recommendation, Scan
-from app.db.session import get_db, SessionLocal
+from app.db.session import get_db
 from app.schemas.scan import (
     HistoryItem,
     HistoryResponse,

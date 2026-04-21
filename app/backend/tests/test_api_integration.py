@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
@@ -47,4 +46,6 @@ def test_network_devices_with_auth(mock_scanner):
     response = client.get("/api/v1/network/devices", headers={"X-API-Token": "changeme-token"})
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
+    assert "devices" in data
+    assert "total" in data
+    assert isinstance(data["devices"], list)

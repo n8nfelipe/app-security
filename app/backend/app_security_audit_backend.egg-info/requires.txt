@@ -6,6 +6,8 @@ sqlalchemy<3.0.0,>=2.0.36
 httpx<1.0.0,>=0.28.0
 psutil<7.0.0,>=6.1.0
 reportlab<5.0.0,>=4.2.0
+docker<8.0.0,>=7.0.0
+python-nmap<1.0.0,>=0.7.1
 
 [dev]
 pytest<9.0.0,>=8.3.0

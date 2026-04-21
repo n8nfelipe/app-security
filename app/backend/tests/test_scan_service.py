@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 from datetime import datetime, timezone
 from fastapi import HTTPException
 
@@ -52,7 +52,6 @@ def test_get_scan_result_not_found(mock_get_db):
 
 
 def test_get_scan_history_empty(mock_get_db):
-    from app.db.models import Scan
     from app.services.scan_service import get_scan_history
     
     mock_query = MagicMock()
@@ -67,7 +66,6 @@ def test_get_scan_history_empty(mock_get_db):
 
 
 def test_get_scan_history_with_scans(mock_get_db):
-    from app.db.models import Scan
     from app.services.scan_service import get_scan_history
     
     mock_scan = MagicMock()
@@ -94,7 +92,6 @@ def test_get_scan_history_with_scans(mock_get_db):
 
 
 def test_mark_scan_failed(mock_get_db):
-    from app.db.models import Scan
     from app.services.scan_service import _mark_scan_failed
     
     mock_scan = MagicMock()
