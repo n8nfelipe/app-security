@@ -122,11 +122,14 @@ npm run dev
 
 ## G) Testes
 
-Backend:
+Todos os testes de backend usam mocks para banco de dados (SQLite), garantindo execucao isolada sem dependência de arquivo `.db`.
+
+Backend (208 testes com mock):
 
 ```bash
 cd app/backend
-pytest
+source .venv/bin/activate
+python -m pytest tests/ -v
 ```
 
 Frontend:
@@ -138,6 +141,7 @@ npm test
 
 Arquivos de teste:
 
+- [conftest.py](./app/backend/tests/conftest.py) — fixture global que mocka `init_db`
 - [test_parser.py](./app/backend/tests/test_parser.py)
 - [test_scoring.py](./app/backend/tests/test_scoring.py)
 - [ScoreCards.test.jsx](./app/frontend/src/components/ScoreCards.test.jsx)
