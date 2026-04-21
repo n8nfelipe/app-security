@@ -16,7 +16,7 @@ def list_running_containers():
                 "name": c.name,
                 "image": c.image.tags[0] if c.image.tags else c.image.short_id,
                 "status": c.status,
-                "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {})
+                "ports": (c.attrs.get("NetworkSettings") or {}).get("Ports") or {}
             }
             for c in containers
         ]

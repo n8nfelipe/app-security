@@ -38,7 +38,7 @@ export function UsersPage() {
           <h2>Usuarios do sistema</h2>
           <p className="muted">
             Total: <strong>{total}</strong> contas | 
-            Humanos: <strong>{human_users}</strong> (UID >= 1000)
+            Humanos: <strong>{human_users}</strong> (UID &gt;= 1000)
           </p>
         </div>
         <button className="secondary-button" onClick={() => loadUsers(true)} disabled={refreshing}>
