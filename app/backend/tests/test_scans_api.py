@@ -38,7 +38,6 @@ def test_export_pdf_endpoint_no_auth():
 @patch("app.services.scan_service.get_scan_history")
 def test_history_endpoint_with_limit(mock_history):
     mock_history.return_value = MagicMock(items=[])
-    
     response = client.get("/api/v1/history?limit=50", headers={"X-API-Token": "changeme-token"})
     assert response.status_code == 200
 
@@ -46,7 +45,6 @@ def test_history_endpoint_with_limit(mock_history):
 @patch("app.services.scan_service.get_scan_history")
 def test_history_endpoint_with_hostname(mock_history):
     mock_history.return_value = MagicMock(items=[])
-    
     response = client.get("/api/v1/history?hostname=test-host", headers={"X-API-Token": "changeme-token"})
     assert response.status_code == 200
 
@@ -54,6 +52,5 @@ def test_history_endpoint_with_hostname(mock_history):
 @patch("app.services.scan_service.get_scan_history")
 def test_history_endpoint_with_machine_id(mock_history):
     mock_history.return_value = MagicMock(items=[])
-    
     response = client.get("/api/v1/history?machine_id=id-123", headers={"X-API-Token": "changeme-token"})
     assert response.status_code == 200
