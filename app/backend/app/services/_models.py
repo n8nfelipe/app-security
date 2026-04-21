@@ -31,17 +31,7 @@ class Finding:
         }
 
 
-@dataclass
 class Checker:
-    check_id: str
-    domain: str
-    category: str
-    severity: str
-    title: str
-    rationale: str
-    recommendation: str
-    reference: str
-
     def check(self, snapshot: dict, commands: dict, rules: dict) -> list[Finding]:
         raise NotImplementedError
 
