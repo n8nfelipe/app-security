@@ -9,12 +9,36 @@ from app.services._checks import (
     _check_docker_containers,
     _check_established_connections,
 )
+from app.services._identity import (
+    CheckUid0Users,
+    CheckManyShellUsers,
+    CheckSudoNopasswd,
+    CheckSshRootLogin,
+    CheckSshPasswordAuth,
+)
+from app.services._network import (
+    CheckManyPublicPorts,
+    CheckWorldWritableEtc,
+    CheckFirewallState,
+)
 from app.services._firewall import (
     _evaluate_firewall_state,
     _nft_ruleset_state,
     _ufw_state,
     _iptables_state,
 )
+
+
+SECURITY_CHECKS = [
+    CheckUid0Users,
+    CheckManyShellUsers,
+    CheckSudoNopasswd,
+    CheckSshRootLogin,
+    CheckSshPasswordAuth,
+    CheckManyPublicPorts,
+    CheckWorldWritableEtc,
+    CheckFirewallState,
+]
 
 
 REMEDIATION_GUIDES = {
@@ -192,365 +216,12 @@ def load_rules(path: Path) -> dict:
 
 def build_findings(snapshot: dict, rules: dict) -> list[dict]:
     findings: list[dict] = []
-    files = snapshot["files"]
     commands = snapshot["commands"]
-    psutil_metrics = snapshot["metadata"]["psutil"]
-    thresholds = rules["performance_thresholds"]
-    critical_services = set(rules["critical_services"])
 
-    passwd_entries = parser.parse_passwd(files["passwd"]["content"])
-    human_users = [user for user in passwd_entries if user["uid"] >= 1000 and not user["shell"].endswith("nologin")]
-    if any(user["uid"] == 0 and user["username"] != "root" for user in passwd_entries):
-        findings.append(
-            _finding(
-                "sec_uid0_users",
-                "security",
-                "identity",
-                "CRIT",
-                "Conta adicional com UID 0 encontrada",
-                "Usuarios com UID 0 ampliam superficie de privilegio.",
-                evidence=", ".join(user["username"] for user in passwd_entries if user["uid"] == 0),
-                recommendation="Revisar contas administrativas e remover UID 0 desnecessario.",
-                reference="CIS Debian 5.4",
-                rules=rules,
-            )
-        )
-
-    if len(human_users) > 10:
-        findings.append(
-            _finding(
-                "sec_many_shell_users",
-                "security",
-                "identity",
-                "MED",
-                "Numero elevado de usuarios com shell interativo",
-                "Mais usuarios interativos aumentam a superficie de ataque.",
-                evidence=f"{len(human_users)} usuarios com shell ativo",
-                recommendation="Validar contas ativas e remover shells desnecessarios.",
-                reference="Principio de menor privilegio",
-                rules=rules,
-            )
-        )
-
-    sudoers_content = files["sudoers"]["content"]
-    sudoers_d = snapshot.get("directories", {}).get("sudoers_d", {}).get("entries", [])
-    sudoers_merged = "\n".join([sudoers_content, *[entry["content"] for entry in sudoers_d]])
-    if "NOPASSWD" in sudoers_merged:
-        findings.append(
-            _finding(
-                "sec_sudo_nopasswd",
-                "security",
-                "privilege",
-                "HIGH",
-                "Entrada NOPASSWD detectada em sudoers",
-                "Bypass de senha reduz friccao de abuso pos-exploracao.",
-                evidence="NOPASSWD presente em /etc/sudoers",
-                recommendation="Restringir NOPASSWD apenas a automacao estritamente controlada.",
-                reference="CIS Debian 5.2",
-                rules=rules,
-            )
-        )
-
-    sshd_config = files["sshd_config"]["content"]
-    if sshd_config:
-        # Detecta PermitRootLogin com qualquer valor inseguro (yes, without-password,
-        # prohibit-password). Ignora linhas comentadas e whitespace extra.
-        _root_login_insecure = re.compile(
-            r"^\s*PermitRootLogin\s+(?!no\b)",
-            re.MULTILINE | re.IGNORECASE,
-        )
-        _root_login_match = _root_login_insecure.search(sshd_config)
-        if _root_login_match:
-            evidence_value = _root_login_match.group(0).strip()
-            findings.append(
-                _finding(
-                    "sec_ssh_root_login",
-                    "security",
-                    "ssh",
-                    "HIGH",
-                    "SSH permite login direto de root",
-                    "Login direto de root reduz rastreabilidade e amplia impacto.",
-                    evidence=f"PermitRootLogin configurado como: {evidence_value!r}",
-                    recommendation="Definir PermitRootLogin no e usar sudo controlado.",
-                    reference="CIS Debian 5.1",
-                    rules=rules,
-                )
-            )
-        # Detecta PasswordAuthentication yes (ignora comentários e espaços extras)
-        _pw_auth_insecure = re.compile(
-            r"^\s*PasswordAuthentication\s+yes\b",
-            re.MULTILINE | re.IGNORECASE,
-        )
-        if _pw_auth_insecure.search(sshd_config):
-            findings.append(
-                _finding(
-                    "sec_ssh_password_auth",
-                    "security",
-                    "ssh",
-                    "MED",
-                    "SSH aceita autenticacao por senha",
-                    "Credenciais por senha sao mais suscetiveis a brute force e phishing.",
-                    evidence="PasswordAuthentication yes",
-                    recommendation="Preferir chaves, MFA e restricoes por rede.",
-                    reference="OpenSSH hardening",
-                    rules=rules,
-                )
-            )
-
-    sockets = parser.parse_ss_listening(commands["listening_ports"].get("stdout", ""))
-    public_sockets = [sock for sock in sockets if ":0.0.0.0:" in sock["local_address"] or "[::]:" in sock["local_address"]]
-    if len(public_sockets) > 5:
-        findings.append(
-            _finding(
-                "sec_many_public_ports",
-                "security",
-                "network",
-                "HIGH",
-                "Muitas portas escutando em interfaces amplas",
-                "Exposicao de rede aumenta a chance de ataque remoto.",
-                evidence=f"{len(public_sockets)} sockets em 0.0.0.0/[::]",
-                recommendation="Restringir bind, firewall e servicos nao essenciais.",
-                reference="Baseline de exposicao minima",
-                rules=rules,
-            )
-        )
-
-    units = parser.parse_systemd_units(commands["systemd_units"].get("stdout", ""))
-    enabled_critical = [unit["unit"] for unit in units if unit["unit"] in critical_services and unit["state"] == "enabled"]
-    if enabled_critical:
-        findings.append(
-            _finding(
-                "sec_critical_services_enabled",
-                "security",
-                "services",
-                "LOW",
-                "Servicos criticos habilitados",
-                "Servicos de infraestrutura exigem patching e monitoramento continuo.",
-                evidence=", ".join(enabled_critical),
-                recommendation="Confirmar necessidade de cada servico e reforcar observabilidade.",
-                reference="Asset exposure baseline",
-                rules=rules,
-            )
-        )
-
-    world_writable = parser.count_lines(snapshot["filesystem_checks"]["world_writable_etc"].get("stdout", ""))
-    if world_writable > 0:
-        findings.append(
-            _finding(
-                "sec_world_writable_etc",
-                "security",
-                "filesystem",
-                "CRIT",
-                "Arquivos world-writable encontrados em /etc",
-                "Permissao global de escrita em configuracoes e altamente arriscada.",
-                evidence=f"{world_writable} entradas em /etc",
-                recommendation="Corrigir ownership e permissoes imediatamente.",
-                reference="Filesystem integrity baseline",
-                rules=rules,
-            )
-        )
-
-    suid_count = parser.count_lines(snapshot["filesystem_checks"]["suid_sgid_usr"].get("stdout", ""))
-    if suid_count > 50:
-        findings.append(
-            _finding(
-                "sec_suid_sgid_sprawl",
-                "security",
-                "filesystem",
-                "MED",
-                "Quantidade alta de binarios SUID/SGID",
-                "Cada binario privilegiado amplia superficie de escalacao local.",
-                evidence=f"{suid_count} arquivos SUID/SGID em /usr",
-                recommendation="Revisar baseline do sistema e remover pacotes desnecessarios.",
-                reference="Privileged binaries review",
-                rules=rules,
-            )
-        )
-
-    firewall_state = _evaluate_firewall_state(commands)
-    if firewall_state["status"] == "not_confirmed":
-        findings.append(
-            _finding(
-                "sec_firewall_unclear",
-                "security",
-                "network",
-                "HIGH",
-                "Firewall ativo nao ficou evidente na coleta",
-                "Ausencia de bloqueio de entrada aumenta exposicao desnecessaria.",
-                evidence=firewall_state["evidence"],
-                recommendation="Validar nftables/ufw/iptables e documentar baseline.",
-                reference="Host firewall baseline",
-                rules=rules,
-            )
-        )
-    elif firewall_state["status"] == "permissive":
-        findings.append(
-            _finding(
-                "sec_firewall_permissive",
-                "security",
-                "network",
-                "MED",
-                "Firewall detectado, mas sem postura restritiva evidente",
-                "Ha indicao de firewall ativo, porem as regras observadas nao demonstram bloqueio padrao ou filtragem suficientemente defensiva.",
-                evidence=firewall_state["evidence"],
-                recommendation="Revisar regras permitidas e reduzir exposicao desnecessaria.",
-                reference="Host firewall hardening baseline",
-                rules=rules,
-            )
-        )
-
-    os_release = parser.parse_key_value_file(files["os_release"]["content"])
-    update_lines = commands["updates_debian"].get("stdout", "")
-    if "upgradable" in update_lines and parser.count_lines(update_lines) > 1:
-        findings.append(
-            _finding(
-                "sec_pending_updates",
-                "security",
-                "patching",
-                "MED",
-                "Pacotes pendentes de atualizacao detectados",
-                "Backlog de patches aumenta janela de exposicao a CVEs.",
-                evidence=f"Distro {os_release.get('PRETTY_NAME', 'desconhecida')} com updates pendentes",
-                recommendation="Aplicar atualizacoes em janela controlada e validar rollback.",
-                reference="Patch management baseline",
-                rules=rules,
-            )
-        )
-
-    if psutil_metrics["cpu_percent"] >= thresholds["cpu_high_percent"]:
-        findings.append(
-            _finding(
-                "perf_cpu_high",
-                "performance",
-                "cpu",
-                "HIGH",
-                "CPU em utilizacao elevada",
-                "Uso sustentado reduz folga operacional e aumenta latencia.",
-                evidence=f"CPU {psutil_metrics['cpu_percent']:.1f}%",
-                recommendation="Analisar processos no topo e revisar throttling, concorrencia e afinidade.",
-                reference="Performance baseline",
-                rules=rules,
-            )
-        )
-
-    if psutil_metrics["memory"]["percent"] >= thresholds["memory_high_percent"]:
-        findings.append(
-            _finding(
-                "perf_memory_high",
-                "performance",
-                "memory",
-                "HIGH",
-                "RAM proxima do limite",
-                "Pressao de memoria gera swap, reclaim e degradacao geral.",
-                evidence=f"Memoria {psutil_metrics['memory']['percent']:.1f}%",
-                recommendation="Revisar caches, servicos residentes e capacidade.",
-                reference="Performance baseline",
-                rules=rules,
-            )
-        )
-
-    swap_used_mb = psutil_metrics["swap"]["used"] / (1024 * 1024)
-    if swap_used_mb >= thresholds["swap_used_mb"]:
-        findings.append(
-            _finding(
-                "perf_swap_used",
-                "performance",
-                "memory",
-                "MED",
-                "Uso relevante de swap detectado",
-                "Swap ativo e sinal de pressao de memoria ou tuning inadequado.",
-                evidence=f"Swap usada {swap_used_mb:.0f} MB",
-                recommendation="Validar working set, swappiness e tamanho de RAM.",
-                reference="Memory pressure baseline",
-                rules=rules,
-            )
-        )
-
-    disk_rows = parser.parse_df(commands["disk_usage"].get("stdout", ""))
-    hot_filesystems = [row for row in disk_rows if row["use_percent"] >= thresholds["disk_high_percent"]]
-    if hot_filesystems:
-        findings.append(
-            _finding(
-                "perf_disk_high",
-                "performance",
-                "storage",
-                "HIGH",
-                "Filesystem com ocupacao alta",
-                "Disco cheio degrada I/O, logs e operacao de servicos.",
-                evidence=", ".join(f"{row['mountpoint']}={row['use_percent']}%" for row in hot_filesystems),
-                recommendation="Liberar espaco, revisar retention e capacidade.",
-                reference="Capacity baseline",
-                rules=rules,
-            )
-        )
-
-    loadavg = psutil_metrics["loadavg"][0]
-    cpu_count = max(1, int(psutil_metrics.get("cpu_count", 1)))
-    if loadavg / cpu_count >= thresholds["load_per_cpu_warn"]:
-        findings.append(
-            _finding(
-                "perf_load_high",
-                "performance",
-                "cpu",
-                "MED",
-                "Load average elevado por nucleo",
-                "Fila de trabalho acima da folga tende a aumentar latencia.",
-                evidence=f"load1={loadavg:.2f}",
-                recommendation="Cruzar com iowait, CPU steal e top processos.",
-                reference="Linux load baseline",
-                rules=rules,
-            )
-        )
-
-    journal_errors = parser.count_lines(commands["journal_errors"].get("stdout", ""))
-    if journal_errors > 5:
-        findings.append(
-            _finding(
-                "perf_journal_errors",
-                "performance",
-                "stability",
-                "LOW",
-                "Erros recentes no journal podem afetar desempenho",
-                "Falhas recorrentes de servico costumam gerar retry e overhead.",
-                evidence=f"{journal_errors} linhas de erro recentes",
-                recommendation="Revisar servicos com erro recorrente antes de tunar performance.",
-                reference="Stability before tuning",
-                rules=rules,
-            )
-        )
-
-    if "oom" in commands["dmesg_oom"].get("stdout", "").lower():
-        findings.append(
-            _finding(
-                "perf_oom_signals",
-                "performance",
-                "memory",
-                "HIGH",
-                "Sinais de OOM killer encontrados",
-                "OOM impacta disponibilidade e mascara causas reais de saturacao.",
-                evidence="dmesg/journal indica OOM",
-                recommendation="Investigar working set, leaks e limites de memoria.",
-                reference="Kernel OOM investigation",
-                rules=rules,
-            )
-        )
-
-    slow_units = parser.parse_systemd_blame(commands["systemd_analyze"].get("stdout", ""))
-    if slow_units:
-        findings.append(
-            _finding(
-                "perf_boot_slow_units",
-                "performance",
-                "boot",
-                "LOW",
-                "Servicos lentos no boot identificados",
-                "Boot lento indica inicializacao sequencial ou dependencia custosa.",
-                evidence=", ".join(f"{item['unit']} ({item['duration']})" for item in slow_units[:3]),
-                recommendation="Postergar servicos nao criticos e revisar dependencias.",
-                reference="systemd-analyze",
-                rules=rules,
-            )
-        )
+    for checker_cls in SECURITY_CHECKS:
+        checker = checker_cls()
+        for finding in checker.check(snapshot, commands, rules):
+            findings.append(finding.to_dict())
 
     _docker_checks(snapshot, commands, findings, rules)
 
