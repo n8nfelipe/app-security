@@ -34,7 +34,9 @@ jobs:
         with:
           node-version: "20"
       - name: Install dependencies
-        run: cd app/frontend && npm ci
+        run: |
+          cd app/frontend
+          npm install --legacy-peer-deps
       - name: Run tests
         run: cd app/frontend && npm run test
 
@@ -59,7 +61,7 @@ jobs:
       - name: Build frontend
         run: |
           cd app/frontend
-          npm install
+          npm install --legacy-peer-deps
           npm run build
 
   release:
