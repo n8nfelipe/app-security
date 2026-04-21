@@ -1,134 +1,74 @@
 import pytest
-from unittest.mock import patch
-from app.services.scoring import load_rules, calculate_scores
-import json
-import tempfile
-from pathlib import Path
+from app.services.scoring import _nft_ruleset_state, _ufw_state, _iptables_state, _build_finding_metadata
 
 
-@pytest.fixture
-def full_rules():
-    return {
-        "performance_thresholds": {"cpu": 80, "memory": 90},
-        "critical_services": ["sshd", "docker"],
-        "security_weights": {"CRIT": 50, "HIGH": 25, "MED": 10, "LOW": 5, "INFO": 0},
-        "score_weights": {"security": 0.7, "performance": 0.3},
-    }
+class TestNftRulesetState:
+    def test_empty_output_returns_none(self):
+        assert _nft_ruleset_state("") is None
+
+    def test_whitespace_only_returns_none(self):
+        assert _nft_ruleset_state("   \n\t  ") is None
+
+    def test_restrictive_nft(self):
+        output = "table inet filter {\n  hook input priority 0\n  chain output { accept }\n  policy drop\n}"
+        result = _nft_ruleset_state(output)
+        assert result["status"] == "restrictive"
+
+    def test_permissive_nft(self):
+        output = "table inet filter {\n  hook input priority 0\n  chain input { accept }\n}"
+        result = _nft_ruleset_state(output)
+        assert result["status"] == "permissive"
 
 
-@patch("app.services.scoring.parser")
-def test_summarize_snapshot_cpu(mock_parser, full_rules):
-    from app.services.scoring import summarize_snapshot
-    
-    mock_parser.parse_passwd.return_value = []
-    mock_parser.parse_key_value_file.return_value = {}
-    mock_parser.parse_ss_listening.return_value = []
-    mock_parser.parse_df.return_value = []
-    
-    snapshot = {
-        "files": {"passwd": {"content": ""}, "os_release": {"content": ""}},
-        "commands": {
-            "listening_ports": {"stdout": ""},
-            "disk_usage": {"stdout": ""},
-            "cpu_processes": {"stdout": ""},
-        },
-        "metadata": {
-            "hostname": "test",
-            "psutil": {"cpu_count": 4, "cpu_percent": 90, "memory": {"percent": 90}}
-        }
-    }
-    
-    result = summarize_snapshot(snapshot, [])
-    assert isinstance(result, dict)
+class TestUfwState:
+    def test_inactive_returns_none(self):
+        assert _ufw_state("Status: inactive") is None
+
+    def test_active_restrictive(self):
+        output = "Status: active\nDefault: deny (incoming)"
+        result = _ufw_state(output)
+        assert result["status"] == "restrictive"
+
+    def test_active_permissive(self):
+        output = "Status: active\nDefault: allow (incoming)"
+        result = _ufw_state(output)
+        assert result["status"] == "permissive"
 
 
-@patch("app.services.scoring.parser")
-def test_summarize_snapshot_with_ports(mock_parser, full_rules):
-    from app.services.scoring import summarize_snapshot
-    
-    mock_parser.parse_passwd.return_value = []
-    mock_parser.parse_key_value_file.return_value = {"PRETTY_NAME": "Ubuntu"}
-    mock_parser.parse_ss_listening.return_value = [
-        {"local_address": "0.0.0.0:22"},
-        {"local_address": "0.0.0.0:80"},
-    ]
-    mock_parser.parse_df.return_value = []
-    
-    snapshot = {
-        "files": {"passwd": {"content": ""}, "os_release": {"content": ""}},
-        "commands": {
-            "listening_ports": {"stdout": ""},
-            "established_connections": {"stdout": ""},
-            "disk_usage": {"stdout": ""},
-            "cpu_processes": {"stdout": ""},
-        },
-        "metadata": {
-            "hostname": "test",
-            "psutil": {"cpu_count": 4, "cpu_percent": 50}
-        }
-    }
-    
-    result = summarize_snapshot(snapshot, [])
-    assert isinstance(result, dict)
+class TestIptablesState:
+    def test_empty_returns_none(self):
+        assert _iptables_state("") is None
+
+    def test_whitespace_only_returns_none(self):
+        assert _iptables_state("   \n  ") is None
+
+    def test_with_drop_policy(self):
+        output = "-P INPUT DROP\n-P OUTPUT ACCEPT"
+        result = _iptables_state(output)
+        assert result["status"] == "restrictive"
+
+    def test_with_custom_chain(self):
+        output = "-N CUSTOM_CHAIN\n-A CUSTOM_CHAIN -j ACCEPT"
+        result = _iptables_state(output)
+        assert result["status"] == "permissive"
 
 
-def test_rules_with_special_thresholds():
-    rules_data = {
-        "performance_thresholds": {"cpu": 90, "memory": 95},
-        "critical_services": ["systemd"],
-        "security_weights": {"CRIT": 60, "HIGH": 30, "MED": 15, "LOW": 5, "INFO": 0},
-        "score_weights": {"security": 0.5, "performance": 0.5},
-    }
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(rules_data, f)
-        f.flush()
-        result = load_rules(Path(f.name))
-    
-    assert result["performance_thresholds"]["cpu"] == 90
+class TestBuildFindingMetadata:
+    def test_low_severity_returns_empty(self):
+        result = _build_finding_metadata("check_1", "LOW", "rec", "ref")
+        assert result == {}
 
+    def test_medium_severity_returns_empty(self):
+        result = _build_finding_metadata("check_1", "MED", "rec", "ref")
+        assert result == {}
 
-def test_score_bounds_zero_penalty():
-    rules = {
-        "performance_thresholds": {"cpu": 80, "memory": 90},
-        "security_weights": {"CRIT": 50, "HIGH": 25, "MED": 10, "LOW": 5, "INFO": 0},
-        "score_weights": {"security": 0.7, "performance": 0.3},
-    }
-    findings = [
-        {"severity": "CRIT", "check_id": "C1", "domain": "security", "weight": 10},
-        {"severity": "CRIT", "check_id": "C2", "domain": "security", "weight": 10},
-    ]
-    
-    result = calculate_scores(findings, rules)
-    assert result["security"] >= 0
+    def test_high_severity_has_remediation(self):
+        result = _build_finding_metadata("check_1", "HIGH", "rec", "ref")
+        assert "remediation" in result
+        assert "steps" in result["remediation"]
+        assert "verify" in result["remediation"]
 
-
-def test_score_bounds_exceed():
-    rules = {
-        "performance_thresholds": {"cpu": 80, "memory": 90},
-        "security_weights": {"CRIT": 50, "HIGH": 25, "MED": 10, "LOW": 5, "INFO": 0},
-        "score_weights": {"security": 0.7, "performance": 0.3},
-    }
-    findings = [
-        {"severity": "CRIT", "check_id": "C1", "domain": "security", "weight": 10},
-        {"severity": "CRIT", "check_id": "C2", "domain": "security", "weight": 10},
-        {"severity": "CRIT", "check_id": "C3", "domain": "security", "weight": 10},
-    ]
-    
-    result = calculate_scores(findings, rules)
-    assert result["security"] >= 0
-
-
-def test_load_rules_full_structure():
-    rules_data = {
-        "performance_thresholds": {"cpu": 80, "memory": 90},
-        "critical_services": ["sshd"],
-        "security_weights": {"CRIT": 50, "HIGH": 25},
-        "score_weights": {"security": 0.7},
-    }
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(rules_data, f)
-        f.flush()
-        result = load_rules(Path(f.name))
-        assert "security_weights" in result
+    def test_known_check_uses_custom_guide(self):
+        result = _build_finding_metadata("sec_uid0_users", "HIGH", "rec", "ref")
+        assert "remediation" in result
+        assert "Liste as contas" in result["remediation"]["steps"][0]

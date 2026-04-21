@@ -82,7 +82,7 @@ jobs:
           
           MAJOR=$(git log --format=%s HEAD~30..HEAD | grep -c "^BREAKING CHANGE" || echo "0")
           MINOR=$(git log --format=%s HEAD~30..HEAD | grep -c "^feat" || echo "0")
-          PATCH=$(git log --format=%s HEAD~30..HEAD | grep -Ec "^(fix|minor|docs)" || echo "0")
+          PATCH=$(git log --format=%s HEAD~30..HEAD | grep -Ec "^(fix|docs)" || echo "0")
           
           MAJ=$(echo $LAST_VERSION | cut -d. -f1)
           MIN=$(echo $LAST_VERSION | cut -d. -f2)
