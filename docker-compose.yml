@@ -19,6 +19,7 @@ services:
     volumes:
       - ./data/backend:/srv/data
       - /:/host:ro
+      - /var/run/docker.sock:/var/run/docker.sock
 
   frontend:
     build:
@@ -27,8 +28,8 @@ services:
       - .env
     environment:
       VITE_API_BASE_URL: http://localhost:8000/api/v1
-      VITE_API_TOKEN: ${VITE_API_TOKEN}
+      VITE_API_TOKEN: ${APPSEC_API_TOKEN}
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:5173:5173"
     depends_on:
       - backend

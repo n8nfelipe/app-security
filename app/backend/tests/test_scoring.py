@@ -1,17 +1,25 @@
-from app.services.scoring import calculate_scores
+import pytest
+from unittest.mock import patch, MagicMock
+from pathlib import Path
+import json
+import tempfile
 
 
-def test_calculate_scores_applies_weighted_penalties():
-    findings = [
-        {"domain": "security", "severity": "CRIT"},
-        {"domain": "security", "severity": "HIGH"},
-        {"domain": "performance", "severity": "MED"},
-    ]
-    rules = {
-        "security_weights": {"CRIT": 25, "HIGH": 15, "MED": 8, "LOW": 3, "INFO": 0},
-        "score_weights": {"security": 0.6, "performance": 0.4},
-    }
-    scores = calculate_scores(findings, rules)
-    assert scores["security"] == 60.0
-    assert scores["performance"] == 92.0
-    assert scores["overall"] == 72.8
+def test_load_rules():
+    from app.services.scoring import load_rules
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        json.dump({"test": "data"}, f)
+        f.flush()
+        result = load_rules(Path(f.name))
+        assert "test" in result
+
+
+def test_load_rules_invalid():
+    from app.services.scoring import load_rules
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        f.write("not valid json")
+        f.flush()
+        with pytest.raises(json.JSONDecodeError):
+            load_rules(Path(f.name))

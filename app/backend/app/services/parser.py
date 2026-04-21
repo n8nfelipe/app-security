@@ -77,13 +77,19 @@ def parse_ps_table(content: str, limit: int = 10) -> list[dict]:
         parts = line.split(None, 5)
         if len(parts) < 6:
             continue
+        try:
+            cpu = float(parts[3])
+            mem = float(parts[4])
+        except (ValueError, IndexError):
+            cpu = 0.0
+            mem = 0.0
         processes.append(
             {
                 "pid": int(parts[0]),
                 "ppid": int(parts[1]),
                 "command": parts[2],
-                "cpu_percent": float(parts[3]),
-                "memory_percent": float(parts[4]),
+                "cpu_percent": cpu,
+                "memory_percent": mem,
                 "state": parts[5],
             }
         )

@@ -4,9 +4,29 @@ import { ProcessChart } from "../components/ProcessChart";
 import { ScoreCards } from "../components/ScoreCards";
 import { ScoreTrendChart } from "../components/ScoreTrendChart";
 import { SeverityChart } from "../components/SeverityChart";
+import { useState, useEffect } from "react";
+import { api } from "../lib/api";
 
 export function OverviewPage({ audit }) {
   const summary = audit.result?.summary;
+  const [networkCount, setNetworkCount] = useState(null);
+  const [networkLoading, setNetworkLoading] = useState(true);
+  const [networkError, setNetworkError] = useState("");
+
+  useEffect(() => {
+    setNetworkLoading(true);
+    setNetworkError("");
+    api.listNetworkDevices()
+      .then((resp) => {
+        setNetworkCount(resp?.total ?? 0);
+        setNetworkLoading(false);
+      })
+      .catch((err) => {
+        setNetworkCount(null);
+        setNetworkLoading(false);
+        setNetworkError("Erro ao buscar rede");
+      });
+  }, []);
 
   if (!audit.result && !audit.loading) {
     return <EmptyState onStartScan={audit.startScan} loading={audit.loading} />;
@@ -63,12 +83,16 @@ export function OverviewPage({ audit }) {
               <strong>{summary?.critical_findings ?? "--"}</strong>
             </div>
             <div className="metric-tile">
-              <span>Containers Docker</span>
-              <strong>{summary?.docker_containers ?? "--"}</strong>
-            </div>
-            <div className="metric-tile">
-              <span>Redes Docker</span>
-              <strong>{summary?.docker_networks ?? "--"}</strong>
+              <span>Dispositivos na rede</span>
+              <strong>
+                {networkLoading
+                  ? "..."
+                  : networkError
+                  ? "--"
+                  : networkCount != null
+                  ? networkCount
+                  : "--"}
+              </strong>
             </div>
             <div className="metric-tile">
               <span>Conexoes TCP</span>

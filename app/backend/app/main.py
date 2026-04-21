@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, scans
+from app.api.routes import health, scans, containers, network, users, rules
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import init_db
@@ -37,6 +37,10 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(scans.router, prefix="/api/v1", tags=["scans"])
+app.include_router(containers.router, prefix="/api/v1", tags=["containers"])
+app.include_router(network.router, prefix="/api/v1", tags=["network"])
+app.include_router(users.router, prefix="/api/v1", tags=["users"])
+app.include_router(rules.router, prefix="/api/v1", tags=["rules"])
 
 
 @app.get("/")

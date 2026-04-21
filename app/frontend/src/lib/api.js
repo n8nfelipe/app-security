@@ -22,6 +22,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  listContainers: () => request("/containers"),
+  listNetworkDevices: () => request("/network/devices"),
+  listUsers: () => request("/users"),
+  listRules: () => request("/rules"),
   createScan: () => request("/scans", { method: "POST", body: JSON.stringify({ mode: "agentless" }) }),
   scanStatus: (scanId) => request(`/scans/${scanId}/status`),
   scanResults: (scanId) => request(`/scans/${scanId}/results`),

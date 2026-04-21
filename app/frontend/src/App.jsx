@@ -10,9 +10,17 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { NetworkPage } from "./pages/NetworkPage";
 import { useAuditData } from "./lib/useAuditData";
 import { useTheme } from "./lib/useTheme";
+import { ContainersPage } from "./pages/ContainersPage";
+import { NetworkDevicesPage } from "./pages/NetworkDevicesPage";
+import { UsersPage } from "./pages/UsersPage";
+import { RulesPage } from "./pages/RulesPage";
 
 const navItems = [
   { to: "/", label: "Visao geral" },
+  { to: "/usuarios", label: "Usuarios" },
+  { to: "/regras", label: "Regras" },
+  { to: "/containers", label: "Containers" },
+  { to: "/network-devices", label: "Dispositivos" },
   { to: "/security", label: "Seguranca" },
   { to: "/performance", label: "Performance" },
   { to: "/network", label: "Rede" },
@@ -84,14 +92,18 @@ export default function App() {
         </section>
         {audit.error ? <div className="banner error">{audit.error}</div> : null}
         {audit.notice ? <div className="banner">{audit.notice}</div> : null}
-        <Routes>
-          <Route path="/" element={<OverviewPage audit={audit} />} />
-          <Route path="/security" element={<SecurityPage audit={audit} />} />
-          <Route path="/performance" element={<PerformancePage audit={audit} />} />
-          <Route path="/network" element={<NetworkPage audit={audit} />} />
-          <Route path="/recommendations" element={<RecommendationsPage audit={audit} />} />
-          <Route path="/history" element={<HistoryPage audit={audit} />} />
-        </Routes>
+         <Routes>
+<Route path="/" element={<OverviewPage audit={audit} />} />
+            <Route path="/usuarios" element={<UsersPage />} />
+            <Route path="/regras" element={<RulesPage />} />
+            <Route path="/containers" element={<ContainersPage />} />
+           <Route path="/network-devices" element={<NetworkDevicesPage />} />
+           <Route path="/security" element={<SecurityPage audit={audit} />} />
+           <Route path="/performance" element={<PerformancePage audit={audit} />} />
+           <Route path="/network" element={<NetworkPage audit={audit} />} />
+           <Route path="/recommendations" element={<RecommendationsPage audit={audit} />} />
+           <Route path="/history" element={<HistoryPage audit={audit} />} />
+         </Routes>
       </main>
     </div>
   );
