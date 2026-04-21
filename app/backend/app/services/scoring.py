@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 
 from app.services import parser
+from app.services._checks import (
+    _check_docker_socket,
+    _check_docker_containers,
+    _check_established_connections,
+)
 from app.services._firewall import (
     _evaluate_firewall_state,
     _nft_ruleset_state,
@@ -553,86 +558,9 @@ def build_findings(snapshot: dict, rules: dict) -> list[dict]:
 
 
 def _docker_checks(snapshot: dict, commands: dict, findings: list[dict], rules: dict) -> None:
-    docker_socket = commands.get("docker_socket", {}).get("stdout", "")
-    docker_ps = commands.get("docker_ps", {}).get("stdout", "")
-    commands.get("docker_info", {}).get("stdout", "")
-
-    if docker_socket:
-        for line in docker_socket.splitlines():
-            if "docker.sock" in line and "srw-rw-rw-" in line:
-                findings.append(
-                    _finding(
-                        "sec_docker_socket_world_writable",
-                        "security",
-                        "container",
-                        "CRIT",
-                        "Socket Docker com permissao world-writable",
-                        "Acesso irrestrito ao socket Docker permite escape de container.",
-                        evidence=line.strip(),
-                        recommendation="Corrigir permissao para 660 e restringir grupo.",
-                        reference="Docker socket security",
-                        rules=rules,
-                    )
-                )
-                break
-
-    if docker_ps and docker_ps.strip():
-        try:
-            containers = parser.parse_docker_ps(docker_ps)
-            for container in containers:
-                if container.get("Privileged", "").lower() == "true":
-                    findings.append(
-                        _finding(
-                            "sec_docker_privileged_container",
-                            "security",
-                            "container",
-                            "CRIT",
-                            f"Container '{container.get('Names', 'unknown')}' privilegiado",
-                            "Container privilegiado tem acesso completo ao host.",
-                            evidence=f"Container {container.get('Names')} (ID: {container.get('ID')})",
-                            recommendation="Remover flag --privileged e usar capacidades especificas.",
-                            reference="Docker privileged containers",
-                            rules=rules,
-                        )
-                    )
-
-                ports = container.get("Ports", "")
-                if ports and "," in ports:
-                    findings.append(
-                        _finding(
-                            "sec_docker_exposed_ports",
-                            "security",
-                            "container",
-                            "MED",
-                            f"Container '{container.get('Names', 'unknown')}' com multiplas portas expostas",
-                            "Multiplas portas expostas aumentam superficie de ataque.",
-                            evidence=f"Container {container.get('Names')}: {ports}",
-                            recommendation="Revisar portas expostas e usar rede interna.",
-                            reference="Docker network exposure",
-                            rules=rules,
-                        )
-                    )
-        except Exception:
-            pass
-
-    established = commands.get("established_connections", {}).get("stdout", "")
-    if established:
-        conn_count = sum(1 for line in established.splitlines() if "ESTAB" in line)
-        if conn_count > 100:
-            findings.append(
-                _finding(
-                    "sec_many_established_connections",
-                    "security",
-                    "network",
-                    "MED",
-                    "Muitas conexoes TCP estabelecidas",
-                    "Alto numero de conexoes pode indicar vazamento ou attaque.",
-                    evidence=f"{conn_count} conexoes ESTAB",
-                    recommendation="Identificar processos e limpar conexoes persistentes.",
-                    reference="TCP connection baseline",
-                    rules=rules,
-                )
-            )
+    findings.extend(_check_docker_socket(commands, rules))
+    findings.extend(_check_docker_containers(commands, rules))
+    findings.extend(_check_established_connections(commands, rules))
 
 
 def calculate_scores(findings: list[dict], rules: dict) -> dict:
