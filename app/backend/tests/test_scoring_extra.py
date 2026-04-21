@@ -1,5 +1,6 @@
 import pytest
-from app.services.scoring import _nft_ruleset_state, _ufw_state, _iptables_state, _build_finding_metadata
+from app.services._firewall import _nft_ruleset_state, _ufw_state, _iptables_state
+from app.services._models import Finding
 
 
 class TestNftRulesetState:
@@ -53,22 +54,36 @@ class TestIptablesState:
         assert result["status"] == "permissive"
 
 
-class TestBuildFindingMetadata:
-    def test_low_severity_returns_empty(self):
-        result = _build_finding_metadata("check_1", "LOW", "rec", "ref")
-        assert result == {}
+class TestFindingDataclass:
+    def test_to_dict(self):
+        finding = Finding(
+            check_id="test_check",
+            domain="security",
+            category="test",
+            severity="HIGH",
+            title="Test Finding",
+            rationale="Test rationale",
+            evidence="test evidence",
+            recommendation="test recommendation",
+            reference="test reference",
+            weight=10.0,
+        )
+        result = finding.to_dict()
+        assert result["check_id"] == "test_check"
+        assert result["severity"] == "HIGH"
+        assert result["weight"] == 10.0
 
-    def test_medium_severity_returns_empty(self):
-        result = _build_finding_metadata("check_1", "MED", "rec", "ref")
-        assert result == {}
-
-    def test_high_severity_has_remediation(self):
-        result = _build_finding_metadata("check_1", "HIGH", "rec", "ref")
-        assert "remediation" in result
-        assert "steps" in result["remediation"]
-        assert "verify" in result["remediation"]
-
-    def test_known_check_uses_custom_guide(self):
-        result = _build_finding_metadata("sec_uid0_users", "HIGH", "rec", "ref")
-        assert "remediation" in result
-        assert "Liste as contas" in result["remediation"]["steps"][0]
+    def test_default_weight(self):
+        finding = Finding(
+            check_id="test",
+            domain="security",
+            category="test",
+            severity="HIGH",
+            title="T",
+            rationale="R",
+            evidence="E",
+            recommendation="R",
+            reference="R",
+        )
+        assert finding.weight == 0.0
+        assert finding.extra_data == {}

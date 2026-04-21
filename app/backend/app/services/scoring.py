@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 
 from app.services import parser
+from app.services._firewall import (
+    _nft_ruleset_state,
+    _ufw_state,
+    _iptables_state,
+)
 from app.services._checks import (
     _check_docker_socket,
     _check_docker_containers,
@@ -21,12 +26,7 @@ from app.services._network import (
     CheckWorldWritableEtc,
     CheckFirewallState,
 )
-from app.services._firewall import (
-    _evaluate_firewall_state,
-    _nft_ruleset_state,
-    _ufw_state,
-    _iptables_state,
-)
+
 
 
 SECURITY_CHECKS = [
@@ -336,54 +336,4 @@ def summarize_snapshot(snapshot: dict, findings: list[dict]) -> dict:
     }
 
 
-def _finding(
-    check_id: str,
-    domain: str,
-    category: str,
-    severity: str,
-    title: str,
-    rationale: str,
-    evidence: str,
-    recommendation: str,
-    reference: str,
-    rules: dict,
-) -> dict:
-    return {
-        "check_id": check_id,
-        "domain": domain,
-        "category": category,
-        "severity": severity,
-        "title": title,
-        "evidence": evidence,
-        "recommendation": recommendation,
-        "reference": reference,
-        "rationale": rationale,
-        "weight": rules["security_weights"][severity],
-        "extra_data": _build_finding_metadata(check_id, severity, recommendation, reference),
-    }
 
-
-def _build_finding_metadata(check_id: str, severity: str, recommendation: str, reference: str) -> dict:
-    metadata: dict = {}
-    if severity not in {"HIGH", "CRIT"}:
-        return metadata
-
-    guide = REMEDIATION_GUIDES.get(
-        check_id,
-        {
-            "steps": [
-                recommendation,
-                "Aplique a mudanca em janela controlada e com rollback definido.",
-                "Registre a decisao tecnica para manter o baseline consistente.",
-            ],
-            "verify": [
-                "Execute novamente a coleta e confirme que o finding nao reaparece.",
-                f"Valide a configuracao final usando a referencia {reference}.",
-            ],
-        },
-    )
-    metadata["remediation"] = {
-        "steps": guide["steps"],
-        "verify": guide["verify"],
-    }
-    return metadata
