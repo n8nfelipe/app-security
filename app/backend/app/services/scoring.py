@@ -464,7 +464,7 @@ def summarize_snapshot(snapshot: dict, findings: list[dict]) -> dict:
 
     return {
         "host": snapshot["metadata"]["hostname"],
-        "human_users": len([user for user in passwd_entries if user["uid"] >= 1000]),
+        "human_users": len([u for u in passwd_entries if u["uid"] >= 1000 and not u.get("shell", "").endswith("nologin")]),
         "listening_ports": len(sockets),
         "critical_findings": len([finding for finding in findings if finding["severity"] in {"HIGH", "CRIT"}]),
         "disk_pressure_mounts": [row for row in disk_rows if row["use_percent"] >= 85],
