@@ -70,7 +70,7 @@ jobs:
 
   release:
     name: Generate Tag
-    needs: [test-backend, test-frontend]
+    needs: [build]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     permissions:
