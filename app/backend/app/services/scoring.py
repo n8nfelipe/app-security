@@ -224,6 +224,7 @@ def build_findings(snapshot: dict, rules: dict) -> list[dict]:
             findings.append(finding.to_dict())
 
     _docker_checks(snapshot, commands, findings, rules)
+    _performance_checks(snapshot, commands, findings, rules)
 
     return findings
 
@@ -232,6 +233,148 @@ def _docker_checks(snapshot: dict, commands: dict, findings: list[dict], rules: 
     findings.extend(_check_docker_socket(commands, rules))
     findings.extend(_check_docker_containers(commands, rules))
     findings.extend(_check_established_connections(commands, rules))
+
+
+def _performance_checks(snapshot: dict, commands: dict, findings: list[dict], rules: dict) -> None:
+    thresholds = rules.get("performance_thresholds", {})
+    weights = rules.get("security_weights", {})
+    disk_output = commands.get("disk_usage", {}).get("stdout", "")
+    meminfo = snapshot.get("files", {}).get("proc_meminfo", {}).get("content", "")
+    loadavg = snapshot.get("files", {}).get("proc_loadavg", {}).get("stdout", "")
+    swaps = snapshot.get("files", {}).get("proc_swaps", {}).get("content", "")
+    dmesg = commands.get("dmesg_oom", {}).get("stdout", "")
+
+    _check_disk_pressure(disk_output, thresholds, weights, findings)
+    _check_memory_pressure(meminfo, thresholds, weights, findings)
+    _check_swap_usage(swaps, thresholds, weights, findings)
+    _check_cpu_load(loadavg, thresholds, weights, findings)
+    _check_oom_events(dmesg, findings)
+
+
+def _check_disk_pressure(disk_output: str, thresholds: dict, weights: dict, findings: list[dict]) -> None:
+    if not disk_output:
+        return
+    threshold = thresholds.get("disk_high_percent", 85)
+    for row in parser.parse_df(disk_output):
+        use_percent = row.get("use_percent", 0)
+        if use_percent >= threshold:
+            findings.append({
+                "check_id": "perf_disk_high",
+                "domain": "performance",
+                "category": "disk",
+                "severity": "CRIT" if use_percent >= 95 else "HIGH" if use_percent >= 90 else "MED",
+                "title": f"Disco em {row.get('mountpoint')} com {use_percent}% de uso",
+                "rationale": "Espaço em disco baixo pode causar falhas em serviços.",
+                "evidence": f"{row.get('mountpoint')}: {use_percent}% usado de {row.get('size')}",
+                "recommendation": "Limpar logs, caches ou expandir capacidade.",
+                "reference": "Disk usage baseline",
+                "weight": weights.get("CRIT") if use_percent >= 95 else weights.get("HIGH") if use_percent >= 90 else weights.get("MED"),
+            })
+
+
+def _check_memory_pressure(meminfo: str, thresholds: dict, weights: dict, findings: list[dict]) -> None:
+    if not meminfo:
+        return
+    threshold = thresholds.get("memory_high_percent", 90)
+    mem_data: dict[str, int] = {}
+    for line in meminfo.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].endswith(":"):
+            key = parts[0].rstrip(":")
+            value = parts[1]
+            if value.isdigit():
+                mem_data[key] = int(value)
+    total = mem_data.get("MemTotal", 0)
+    available = mem_data.get("MemAvailable", mem_data.get("MemFree", 0))
+    if total > 0:
+        used = total - available
+        use_percent = int((used / total) * 100)
+        if use_percent >= threshold:
+            findings.append({
+                "check_id": "perf_memory_high",
+                "domain": "performance",
+                "category": "memory",
+                "severity": "CRIT" if use_percent >= 98 else "HIGH" if use_percent >= 95 else "MED",
+                "title": f"Memória com {use_percent}% de uso",
+                "rationale": "Memória alta pode causar swapping e lentidão.",
+                "evidence": f"Uso: {use_percent}% ({used}KB / {total}KB)",
+                "recommendation": "Reduzir consumo ou expandir RAM.",
+                "reference": "Memory usage baseline",
+                "weight": weights.get("CRIT") if use_percent >= 98 else weights.get("HIGH") if use_percent >= 95 else weights.get("MED"),
+            })
+
+
+def _check_swap_usage(swaps_content: str, thresholds: dict, weights: dict, findings: list[dict]) -> None:
+    if not swaps_content:
+        return
+    threshold_kb = thresholds.get("swap_used_mb", 512) * 1024
+    swap_data: dict[str, int] = {}
+    for line in swaps_content.splitlines():
+        if line.startswith("Filename"):
+            continue
+        parts = line.split()
+        if len(parts) >= 3:
+            try:
+                swap_data["Size"] = int(parts[2])
+                swap_data["Used"] = int(parts[3])
+            except (ValueError, IndexError):
+                continue
+    used = swap_data.get("Used", 0)
+    if used >= threshold_kb:
+        findings.append({
+            "check_id": "perf_swap_high",
+            "domain": "performance",
+            "category": "memory",
+            "severity": "HIGH",
+            "title": f"Swap em uso: {used // 1024}MB",
+            "rationale": "Swap ativo indica memória insuficiente.",
+            "evidence": f"Swap usado: {used // 1024}MB",
+            "recommendation": "Aumentar RAM ou ajustar swappiness.",
+            "reference": "Swap usage baseline",
+            "weight": weights.get("HIGH"),
+        })
+
+
+def _check_cpu_load(loadavg: str, thresholds: dict, weights: dict, findings: list[dict]) -> None:
+    if not loadavg:
+        return
+    threshold = thresholds.get("load_per_cpu_warn", 1.5)
+    parts = loadavg.split()
+    try:
+        load_1m = float(parts[0])
+        cpu_cores = max(1, int(parts[2])) if len(parts) > 2 else 1
+        load_per_cpu = load_1m / cpu_cores if cpu_cores > 0 else load_1m
+        if load_1m > threshold * cpu_cores:
+            findings.append({
+                "check_id": "perf_cpu_high",
+                "domain": "performance",
+                "category": "cpu",
+                "severity": "HIGH",
+                "title": f"Load average alto: {load_1m} (por core: {load_per_cpu:.2f})",
+                "rationale": "Alta carga de CPU pode causar lentidão.",
+                "evidence": f"Load 1m: {load_1m}, cores: {cpu_cores}",
+                "recommendation": "Identificar processos consumidores.",
+                "reference": "CPU load baseline",
+                "weight": weights.get("HIGH"),
+            })
+    except (ValueError, IndexError, TypeError):
+        pass
+
+
+def _check_oom_events(dmesg: str, findings: list[dict]) -> None:
+    if dmesg and "Out of memory" in dmesg:
+        findings.append({
+            "check_id": "perf_oom_signals",
+            "domain": "performance",
+            "category": "memory",
+            "severity": "CRIT",
+            "title": "Evento OOM detectado",
+            "rationale": "OOM indica falha por falta de memória.",
+            "evidence": "Kernel OOM killer ativado",
+            "recommendation": "Aumentar memória ou ajustar limites.",
+            "reference": "OOM events baseline",
+            "weight": 25,
+        })
 
 
 def calculate_scores(findings: list[dict], rules: dict) -> dict:
