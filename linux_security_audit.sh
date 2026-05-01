@@ -10,6 +10,7 @@
 # =============================================================================
 
 set -uo pipefail
+source "$(dirname "$0")/utils.sh"
 
 # ---------------------------------------------------------------------------
 # Configuração
@@ -141,7 +142,7 @@ section_updates() {
     header "2. ATUALIZAÇÕES DO SISTEMA"
 
     if cmd_exists apt-get; then
-        apt-get update -qq 2>/dev/null || true
+        ${PKG_MANAGER} update -qq 2>/dev/null || true
         UPGRADABLE=$(apt list --upgradable 2>/dev/null | grep -c upgradable || true)
         if [[ "$UPGRADABLE" -eq 0 ]]; then
             pass "Sistema atualizado (apt)"
@@ -150,8 +151,8 @@ section_updates() {
             remediate \
                 "$UPGRADABLE pacote(s) desatualizados" \
                 "Vulnerabilidades conhecidas podem estar presentes" \
-                "apt-get upgrade -y" \
-                "apt-get dist-upgrade -y"
+                "${PKG_MANAGER}upgrade -y" \
+                "${PKG_MANAGER}dist-upgrade -y"
         fi
 
         SEC=$(apt list --upgradable 2>/dev/null | grep -ci security || true)
@@ -160,7 +161,7 @@ section_updates() {
             remediate \
                 "$SEC patch(es) de segurança pendentes" \
                 "CRÍTICO: sistema exposto a vulnerabilidades CVE conhecidas" \
-                "apt-get install -y \$(apt list --upgradable 2>/dev/null | grep security | cut -d/ -f1 | tr '\n' ' ')"
+                "${PKG_MANAGER}install -y \$(apt list --upgradable 2>/dev/null | grep security | cut -d/ -f1 | tr '\n' ' ')"
         else
             pass "Sem atualizações de segurança pendentes"
         fi
@@ -199,7 +200,7 @@ section_updates() {
         remediate \
             "Atualizações automáticas de segurança desativadas" \
             "Sistema pode ficar desatualizado sem intervenção manual" \
-            "apt-get install -y unattended-upgrades" \
+            "${PKG_MANAGER}install -y unattended-upgrades" \
             "dpkg-reconfigure -plow unattended-upgrades"
     fi
 
@@ -293,7 +294,7 @@ section_users() {
         remediate \
             "Sem política de complexidade de senha" \
             "MÉDIO: senhas fracas podem ser criadas sem restrição" \
-            "apt-get install -y libpam-pwquality 2>/dev/null || dnf install -y libpwquality 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y libpam-pwquality 2>/dev/null || dnf install -y libpwquality 2>/dev/null || true" \
             "echo 'minlen=12 ucredit=-1 lcredit=-1 dcredit=-1 ocredit=-1' >> /etc/security/pwquality.conf"
     fi
 }
@@ -420,7 +421,7 @@ section_firewall() {
         remediate \
             "Sistema sem firewall instalado" \
             "CRÍTICO: nenhuma proteção de rede presente" \
-            "apt-get install -y ufw 2>/dev/null || dnf install -y firewalld 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y ufw 2>/dev/null || dnf install -y firewalld 2>/dev/null || true" \
             "ufw default deny incoming && ufw default allow outgoing && ufw allow ssh && ufw --force enable"
     fi
 }
@@ -610,7 +611,7 @@ section_av() {
         remediate \
             "Antivírus ClamAV não instalado" \
             "MÉDIO: sem varredura de malware e vírus" \
-            "apt-get install -y clamav clamav-daemon 2>/dev/null || dnf install -y clamav 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y clamav clamav-daemon 2>/dev/null || dnf install -y clamav 2>/dev/null || true" \
             "freshclam"
     fi
 
@@ -621,7 +622,7 @@ section_av() {
         remediate \
             "rkhunter (rootkit hunter) não instalado" \
             "MÉDIO: rootkits podem passar despercebidos" \
-            "apt-get install -y rkhunter 2>/dev/null || dnf install -y rkhunter 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y rkhunter 2>/dev/null || dnf install -y rkhunter 2>/dev/null || true" \
             "rkhunter --update && rkhunter --propupd"
     fi
 
@@ -632,7 +633,7 @@ section_av() {
         remediate \
             "chkrootkit não instalado" \
             "MÉDIO: detecção complementar de rootkits ausente" \
-            "apt-get install -y chkrootkit 2>/dev/null || dnf install -y chkrootkit 2>/dev/null || true"
+            "${PKG_MANAGER}install -y chkrootkit 2>/dev/null || dnf install -y chkrootkit 2>/dev/null || true"
     fi
 
     if cmd_exists aide; then
@@ -642,7 +643,7 @@ section_av() {
         remediate \
             "AIDE (controle de integridade de arquivos) não instalado" \
             "MÉDIO: alterações em arquivos do sistema podem passar sem detecção" \
-            "apt-get install -y aide 2>/dev/null || dnf install -y aide 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y aide 2>/dev/null || dnf install -y aide 2>/dev/null || true" \
             "aide --init && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db"
     fi
 
@@ -661,7 +662,7 @@ section_av() {
         remediate \
             "fail2ban não instalado" \
             "ALTO: IPs mal-intencionados não são bloqueados automaticamente" \
-            "apt-get install -y fail2ban 2>/dev/null || dnf install -y fail2ban 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y fail2ban 2>/dev/null || dnf install -y fail2ban 2>/dev/null || true" \
             "systemctl enable --now fail2ban"
     fi
 }
@@ -714,7 +715,7 @@ section_disk() {
             "MÉDIO: disco cheio pode travar logs, impedir atualizações e causar instabilidade" \
             "du -sh /* 2>/dev/null | sort -rh | head -20  # Identifique os maiores consumidores" \
             "journalctl --vacuum-size=500M  # Limpa logs antigos do systemd" \
-            "apt-get autoremove -y && apt-get clean 2>/dev/null || dnf autoremove -y 2>/dev/null || true"
+            "${PKG_MANAGER}autoremove -y && apt-get clean 2>/dev/null || dnf autoremove -y 2>/dev/null || true"
     fi
 }
 
@@ -731,7 +732,7 @@ section_audit() {
         remediate \
             "Daemon de auditoria (auditd) não está rodando" \
             "MÉDIO: sem rastreamento de eventos do kernel (chamadas de sistema, acesso a arquivos)" \
-            "apt-get install -y auditd audispd-plugins 2>/dev/null || dnf install -y audit 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y auditd audispd-plugins 2>/dev/null || dnf install -y audit 2>/dev/null || true" \
             "systemctl enable --now auditd" \
             "# Regras básicas de auditoria:" \
             "auditctl -w /etc/passwd -p wa -k identity" \
@@ -746,7 +747,7 @@ section_audit() {
         remediate \
             "Sistema de logs (rsyslog) não está em execução" \
             "ALTO: eventos do sistema não são registrados — impossível investigar incidentes" \
-            "apt-get install -y rsyslog 2>/dev/null || dnf install -y rsyslog 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y rsyslog 2>/dev/null || dnf install -y rsyslog 2>/dev/null || true" \
             "systemctl enable --now rsyslog"
     fi
 
@@ -760,7 +761,7 @@ section_audit() {
             "MÉDIO/ALTO: possível brute-force em andamento" \
             "journalctl --since '24 hours ago' | grep -i 'failed\|failure' | tail -20  # Verifique IPs" \
             "# Se fail2ban não estiver ativo, instale-o:" \
-            "apt-get install -y fail2ban 2>/dev/null && systemctl enable --now fail2ban || true" \
+            "${PKG_MANAGER}install -y fail2ban 2>/dev/null && systemctl enable --now fail2ban || true" \
             "# Para bloquear IP manualmente: ufw deny from IP_ATACANTE to any"
     fi
 
@@ -770,7 +771,7 @@ section_audit() {
         remediate \
             "logrotate não instalado — logs podem crescer indefinidamente" \
             "BAIXO: disco pode encher com logs sem rotação" \
-            "apt-get install -y logrotate 2>/dev/null || dnf install -y logrotate 2>/dev/null || true"
+            "${PKG_MANAGER}install -y logrotate 2>/dev/null || dnf install -y logrotate 2>/dev/null || true"
     else
         pass "logrotate instalado"
     fi
@@ -862,7 +863,7 @@ section_mac() {
             remediate \
                 "AppArmor instalado mas sem perfis ativos" \
                 "MÉDIO: confinamento de aplicações não está funcionando" \
-                "apt-get install -y apparmor-profiles apparmor-profiles-extra" \
+                "${PKG_MANAGER}install -y apparmor-profiles apparmor-profiles-extra" \
                 "systemctl enable --now apparmor" \
                 "aa-enforce /etc/apparmor.d/*"
         fi
@@ -883,7 +884,7 @@ section_mac() {
         remediate \
             "Nenhum sistema MAC (AppArmor/SELinux) instalado" \
             "ALTO: processos sem confinamento — exploração de uma aplicação compromete o sistema inteiro" \
-            "apt-get install -y apparmor apparmor-utils apparmor-profiles 2>/dev/null || true" \
+            "${PKG_MANAGER}install -y apparmor apparmor-utils apparmor-profiles 2>/dev/null || true" \
             "systemctl enable --now apparmor" \
             "aa-enforce /etc/apparmor.d/*"
     fi

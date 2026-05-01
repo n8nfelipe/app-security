@@ -6,7 +6,12 @@ COPY pyproject.toml README.md requirements.txt ./
 COPY app ./app
 COPY tests ./tests
 
-RUN apt-get update && apt-get install -y nmap python3-pip curl \
+ARG BASE_OS=debian
+RUN if [ "$BASE_OS" = "fedora" ]; then \
+        dnf install -y nmap python3-pip curl; \
+    else \
+        apt-get update && apt-get install -y nmap python3-pip curl; \
+    fi \
     && pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8000
