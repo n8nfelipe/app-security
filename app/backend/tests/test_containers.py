@@ -3,13 +3,14 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.api.routes.containers import list_running_containers
+from app.core.config import settings
 from docker.errors import DockerException
 
 client = TestClient(app)
 
 
 def test_containers_endpoint():
-    response = client.get("/api/v1/containers", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/containers", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 200
     data = response.json()
     assert "containers" in data
@@ -33,8 +34,9 @@ def test_list_running_containers_success():
         mock_client.containers.list.return_value = [mock_container]
         mock_docker.return_value = mock_client
         
-        result = list_running_containers()
-        
+        result, available = list_running_containers()
+
+        assert available is True
         assert len(result) == 1
         assert result[0]["id"] == "abc123"
         assert result[0]["name"] == "test-container"
@@ -49,13 +51,14 @@ def test_list_running_containers_no_tags():
         mock_container.image.short_id = "abc"
         mock_container.status = "running"
         mock_container.attrs = {"NetworkSettings": {"Ports": {}}}
-        
+
         mock_client = MagicMock()
         mock_client.containers.list.return_value = [mock_container]
         mock_docker.return_value = mock_client
-        
-        result = list_running_containers()
-        
+
+        result, available = list_running_containers()
+
+        assert available is True
         assert result[0]["image"] == "abc"
 
 
@@ -71,22 +74,22 @@ def test_list_running_containers_with_ports():
                 "Ports": {"80/tcp": [{"HostPort": "8080"}]}
             }
         }
-        
+
         mock_client = MagicMock()
         mock_client.containers.list.return_value = [mock_container]
         mock_docker.return_value = mock_client
-        
-        result = list_running_containers()
-        
+
+        result, available = list_running_containers()
+
+        assert available is True
         assert "80/tcp" in result[0]["ports"]
 
 
-def test_list_running_containers_docker_exception():
+def test_list_running_containers_docker_unavailable():
     with patch("app.api.routes.containers.docker.DockerClient") as mock_docker:
-        from fastapi import HTTPException
         mock_docker.side_effect = DockerException("Connection refused")
-        
-        with pytest.raises(HTTPException) as exc_info:
-            list_running_containers()
-        assert exc_info.value.status_code == 500
-        assert "Docker" in str(exc_info.value.detail)
+
+        result, available = list_running_containers()
+
+        assert available is False
+        assert result == []

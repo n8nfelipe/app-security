@@ -2,6 +2,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.main import app
 from app.api.routes.network import NetworkDevice, NetworkSummary
+from app.core.config import settings
 
 client = TestClient(app)
 
@@ -57,7 +58,7 @@ def test_network_devices_endpoint(mock_scanner):
     }
     mock_scanner.return_value = mock_nm
 
-    response = client.get("/api/v1/network/devices", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/network/devices", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 2
@@ -76,7 +77,7 @@ def test_network_devices_empty_scan(mock_scanner):
     mock_nm.scan.return_value = {"scan": {}}
     mock_scanner.return_value = mock_nm
 
-    response = client.get("/api/v1/network/devices", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/network/devices", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 0
@@ -97,7 +98,7 @@ def test_network_devices_partial_data(mock_scanner):
     }
     mock_scanner.return_value = mock_nm
 
-    response = client.get("/api/v1/network/devices", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/network/devices", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 1
@@ -113,6 +114,6 @@ def test_network_devices_scan_error(mock_scanner):
     mock_nm.scan.side_effect = Exception("Network error")
     mock_scanner.return_value = mock_nm
 
-    response = client.get("/api/v1/network/devices", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/network/devices", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 500
     assert "Scan failed" in response.json()["detail"]

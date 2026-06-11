@@ -22,11 +22,16 @@ def parse_passwd(content: str) -> list[dict]:
         parts = line.split(":")
         if len(parts) < 7:
             continue
+        try:
+            uid = int(parts[2])
+            gid = int(parts[3])
+        except ValueError:
+            continue
         users.append(
             {
                 "username": parts[0],
-                "uid": int(parts[2]),
-                "gid": int(parts[3]),
+                "uid": uid,
+                "gid": gid,
                 "home": parts[5],
                 "shell": parts[6],
             }
@@ -42,10 +47,14 @@ def parse_group(content: str) -> list[dict]:
         parts = line.split(":")
         if len(parts) < 4:
             continue
+        try:
+            gid = int(parts[2])
+        except ValueError:
+            continue
         groups.append(
             {
                 "name": parts[0],
-                "gid": int(parts[2]),
+                "gid": gid,
                 "members": [member for member in parts[3].split(",") if member],
             }
         )
@@ -78,6 +87,11 @@ def parse_ps_table(content: str, limit: int = 10) -> list[dict]:
         if len(parts) < 6:
             continue
         try:
+            pid = int(parts[0])
+            ppid = int(parts[1])
+        except (ValueError, IndexError):
+            continue
+        try:
             cpu = float(parts[3])
             mem = float(parts[4])
         except (ValueError, IndexError):
@@ -85,8 +99,8 @@ def parse_ps_table(content: str, limit: int = 10) -> list[dict]:
             mem = 0.0
         processes.append(
             {
-                "pid": int(parts[0]),
-                "ppid": int(parts[1]),
+                "pid": pid,
+                "ppid": ppid,
                 "command": parts[2],
                 "cpu_percent": cpu,
                 "memory_percent": mem,
@@ -103,13 +117,18 @@ def parse_df(content: str) -> list[dict]:
         parts = line.split()
         if len(parts) < 6:
             continue
+        raw_pct = parts[4].rstrip("%")
+        try:
+            use_percent = int(raw_pct)
+        except ValueError:
+            continue
         rows.append(
             {
                 "filesystem": parts[0],
                 "size": parts[1],
                 "used": parts[2],
                 "available": parts[3],
-                "use_percent": int(parts[4].rstrip("%")),
+                "use_percent": use_percent,
                 "mountpoint": parts[5],
             }
         )

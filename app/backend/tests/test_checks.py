@@ -51,13 +51,18 @@ class TestCheckDockerContainers:
         assert findings[0]["check_id"] == "sec_docker_privileged_container"
 
     def test_container_exposed_ports(self):
-        commands = {"docker_ps": {"stdout": '{"Names":["test"],"Ports":"80,443,8080"}\n'}}
+        commands = {"docker_ps": {"stdout": '{"Names":["test"],"Ports":"80/tcp, 443/tcp, 8080/tcp, 9090/tcp, 3000/tcp, 5000/tcp"}\n'}}
         findings = _check_docker_containers(commands, DEFAULT_RULES)
         assert len(findings) == 1
         assert findings[0]["check_id"] == "sec_docker_exposed_ports"
 
+    def test_container_single_port_no_finding(self):
+        commands = {"docker_ps": {"stdout": '{"Names":["web"],"Ports":"80/tcp"}\n'}}
+        findings = _check_docker_containers(commands, DEFAULT_RULES)
+        assert len(findings) == 0
+
     def test_multiple_findings(self):
-        commands = {"docker_ps": {"stdout": '{"Names":["c1"],"Privileged":"true","Ports":"80,443"}\n'}}
+        commands = {"docker_ps": {"stdout": '{"Names":["c1"],"Privileged":"true","Ports":"80/tcp, 443/tcp, 8080/tcp, 9090/tcp, 3000/tcp, 5000/tcp"}\n'}}
         findings = _check_docker_containers(commands, DEFAULT_RULES)
         assert len(findings) == 2
 

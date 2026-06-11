@@ -8,10 +8,38 @@ on:
 
 permissions:
   contents: write
+  security-events: write
+  actions: read
 
 jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  lint-dockerfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/backend/Dockerfile
+      - name: Run hadolint (frontend)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: app/frontend/Dockerfile
+
   test-backend:
     runs-on: ubuntu-latest
+    env:
+      APPSEC_API_TOKEN: test-token
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,6 +52,16 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           pip install -e ".[dev]"
+          pip install bandit pip-audit
+      - name: Run Bandit (SAST)
+        run: |
+          source app/backend/.venv/bin/activate
+          bandit -r app/backend/app -f json -o bandit-report.json || true
+      - name: Run pip-audit (SCA)
+        continue-on-error: true
+        run: |
+          source app/backend/.venv/bin/activate
+          pip-audit
       - name: Run tests
         run: |
           source app/backend/.venv/bin/activate
@@ -40,12 +78,15 @@ jobs:
         run: |
           cd app/frontend
           npm install --legacy-peer-deps
+      - name: Run npm audit
+        continue-on-error: true
+        run: cd app/frontend && npm audit --audit-level=high
       - name: Run tests
         run: cd app/frontend && npm run test
 
   build:
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
+    needs: [secrets-scan, lint-dockerfile, test-backend, test-frontend]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

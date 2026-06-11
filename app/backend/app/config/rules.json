@@ -11,6 +11,7 @@
     "memory_high_percent": 90,
     "swap_used_mb": 512,
     "disk_high_percent": 85,
+    "inode_high_percent": 80,
     "load_per_cpu_warn": 1.5,
     "boot_service_slow_seconds": 10
   },
@@ -26,5 +27,6 @@
     "nginx.service",
     "apache2.service",
     "postgresql.service"
-  ]
+  ],
+  "suid_sgid_threshold": 30
 }

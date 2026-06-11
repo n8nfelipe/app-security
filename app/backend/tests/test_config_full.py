@@ -2,9 +2,9 @@ from app.core.config import Settings
 
 
 def test_settings_defaults():
-    s = Settings()
+    s = Settings(api_token="test-token")
     assert s.app_name == "App Security Audit"
-    assert s.api_token == "changeme-token"
+    assert s.api_token == "test-token"
     assert s.default_scan_mode == "agentless"
 
 
@@ -19,29 +19,29 @@ def test_settings_with_custom_values():
 
 
 def test_settings_cors_list():
-    s = Settings()
+    s = Settings(api_token="test-token")
     assert "localhost" in str(s.cors_origins)
 
 
 def test_settings_timeout_values():
-    s = Settings()
+    s = Settings(api_token="test-token")
     assert s.command_timeout_seconds > 0
     assert s.find_timeout_seconds > 0
 
 
 def test_settings_export_dir():
-    s = Settings()
+    s = Settings(api_token="test-token")
     assert s.export_dir is not None
 
 
 def test_settings_database_url():
-    s = Settings()
+    s = Settings(api_token="test-token")
     assert s.database_url is not None
     assert "sqlite" in s.database_url or "postgresql" in s.database_url
 
 
 def test_settings_rules_file():
-    s = Settings()
+    s = Settings(api_token="test-token")
     assert s.rules_file is not None
 
 

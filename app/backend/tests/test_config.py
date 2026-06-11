@@ -3,6 +3,7 @@ def test_config_settings():
     from app.core.config import settings
     assert settings.app_name == "App Security Audit"
     assert settings.default_scan_mode == "agentless"
+    assert settings.api_token != ""
 
 def test_config_custom():
     from app.core.config import Settings

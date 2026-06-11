@@ -68,23 +68,59 @@ COMMANDS: dict[str, CommandSpec] = {
     "docker_volume": CommandSpec("docker_volume", ["docker", "volume", "ls", "--format", "{{json}}"], "Listar volumes Docker."),
     "docker_info": CommandSpec("docker_info", ["docker", "info", "--format", "{{json}}"], "Informacoes gerais do Docker."),
     "docker_socket": CommandSpec("docker_socket", ["ls", "-la", "/var/run/docker.sock"], "Verificar permissao do socket Docker."),
+    "kernel_security": CommandSpec(
+        "kernel_security",
+        [
+            "sysctl",
+            "net.ipv4.ip_forward",
+            "net.ipv4.conf.all.accept_redirects",
+            "net.ipv4.conf.all.send_redirects",
+            "net.ipv4.conf.all.accept_source_route",
+            "net.ipv4.tcp_syncookies",
+            "kernel.randomize_va_space",
+            "kernel.dmesg_restrict",
+            "fs.suid_dumpable",
+            "net.ipv4.conf.all.rp_filter",
+            "kernel.core_uses_pid",
+        ],
+        "Avaliar parametros de seguranca do kernel.",
+    ),
+    "apparmor_status": CommandSpec("apparmor_status", ["aa-status"], "Coletar status do AppArmor."),
+    "selinux_status": CommandSpec("selinux_status", ["getenforce"], "Coletar status do SELinux."),
+    "service_auditd": CommandSpec("service_auditd", ["systemctl", "is-active", "auditd"], "Verificar se auditd esta ativo."),
+    "service_rsyslog": CommandSpec("service_rsyslog", ["systemctl", "is-active", "rsyslog"], "Verificar se rsyslog esta ativo."),
+    "service_fail2ban": CommandSpec("service_fail2ban", ["systemctl", "is-active", "fail2ban"], "Verificar se fail2ban esta ativo."),
+    "av_tools": CommandSpec(
+        "av_tools",
+        ["which", "--", "clamscan", "rkhunter", "chkrootkit", "aide", "fail2ban-client"],
+        "Verificar presenca de ferramentas AV/IDS.",
+    ),
+    "lsblk": CommandSpec("lsblk", ["lsblk", "-o", "TYPE"], "Verificar dispositivos de bloco (LUKS)."),
+    "active_services": CommandSpec(
+        "active_services",
+        ["systemctl", "list-units", "--type=service", "--state=running", "--no-pager", "--no-legend"],
+        "Listar servicos ativos no momento.",
+    ),
 }
 
 
 TEXT_FILES = {
     "passwd": Path(f"{settings.host_fs_prefix}/etc/passwd"),
     "group": Path(f"{settings.host_fs_prefix}/etc/group"),
+    "shadow": Path(f"{settings.host_fs_prefix}/etc/shadow"),
     "sudoers": Path(f"{settings.host_fs_prefix}/etc/sudoers"),
     "os_release": Path(f"{settings.host_fs_prefix}/etc/os-release"),
     "machine_id": Path(f"{settings.host_fs_prefix}/etc/machine-id"),
     "sshd_config": Path(f"{settings.host_fs_prefix}/etc/ssh/sshd_config"),
     "fstab": Path(f"{settings.host_fs_prefix}/etc/fstab"),
     "resolv_conf": Path(f"{settings.host_fs_prefix}/etc/resolv.conf"),
+    "login_defs": Path(f"{settings.host_fs_prefix}/etc/login.defs"),
     "proc_loadavg": Path(f"{settings.host_fs_prefix}/proc/loadavg"),
     "proc_meminfo": Path(f"{settings.host_fs_prefix}/proc/meminfo"),
     "proc_diskstats": Path(f"{settings.host_fs_prefix}/proc/diskstats"),
     "proc_stat": Path(f"{settings.host_fs_prefix}/proc/stat"),
     "proc_swaps": Path(f"{settings.host_fs_prefix}/proc/swaps"),
+    "proc_mounts": Path(f"{settings.host_fs_prefix}/proc/mounts"),
 }
 
 DIRECTORIES = {

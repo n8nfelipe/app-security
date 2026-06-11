@@ -2,6 +2,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from app.main import app
 from app.api.routes.users import UserAccount, UsersSummary
+from app.core.config import settings
 
 client = TestClient(app)
 
@@ -40,7 +41,7 @@ def test_users_summary_model():
 def test_get_users_success(mock_read_text):
     mock_read_text.return_value = "root:x:0:0:root:/root:/bin/bash\nuser1:x:1000:1000:User1:/home/user1:/bin/bash\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n"
     
-    response = client.get("/api/v1/users", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/users", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 3
@@ -52,7 +53,7 @@ def test_get_users_success(mock_read_text):
 def test_get_users_empty(mock_read_text):
     mock_read_text.return_value = ""
     
-    response = client.get("/api/v1/users", headers={"X-API-Token": "changeme-token"})
+    response = client.get("/api/v1/users", headers={"X-API-Token": settings.api_token})
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 0

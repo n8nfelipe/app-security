@@ -67,7 +67,7 @@ Estrutura principal:
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `APPSEC_API_TOKEN` | `changeme-token` | Token de autenticação da API (deve ser igual ao do frontend) |
+| `APPSEC_API_TOKEN` | *(obrigatório, sem padrão)* | Token de autenticação da API (deve ser igual ao do frontend) |
 | `APPSEC_DATABASE_URL` | `sqlite:///./app_security_audit.db` | URL do banco de dados |
 | `APPSEC_EXPORT_DIR` | `./exports` | Diretório de exportações |
 | `APPSEC_HOST_FS_PREFIX` | *(vazio)* | Prefixo do sistema de arquivos do host (ex: `/host` no Docker) |
@@ -83,8 +83,10 @@ cd app/backend
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
-export APPSEC_API_TOKEN=changeme-token
+export APPSEC_API_TOKEN=$(openssl rand -hex 32)
 uvicorn app.main:app --reload
+```
+
 ```
 
 Migracao local rapida:
@@ -192,7 +194,7 @@ cd app/backend
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e .[dev]
-export APPSEC_API_TOKEN=changeme-token
+export APPSEC_API_TOKEN=$(openssl rand -hex 32)
 uvicorn app.main:app --reload
 ```
 

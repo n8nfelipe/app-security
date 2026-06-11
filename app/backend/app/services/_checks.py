@@ -12,6 +12,19 @@ def _check_docker_socket(commands: dict, rules: dict) -> list[dict]:
     return findings
 
 
+def _count_exposed_ports(ports_str: str) -> int:
+    count = 0
+    for mapping in ports_str.split(","):
+        mapping = mapping.strip()
+        if "->" in mapping:
+            candidate = mapping.split("->")[0].strip().split(":")[-1]
+        else:
+            candidate = mapping.split("/")[0].strip()
+        if candidate.isdigit():
+            count += 1
+    return count
+
+
 def _check_docker_containers(commands: dict, rules: dict) -> list[dict]:
     findings: list[dict] = []
     docker_ps = commands.get("docker_ps", {}).get("stdout", "")
@@ -27,7 +40,7 @@ def _check_docker_containers(commands: dict, rules: dict) -> list[dict]:
                     rules,
                 ))
             ports = container.get("Ports", "")
-            if ports and "," in ports:
+            if ports and _count_exposed_ports(ports) > 5:
                 findings.append(_docker_finding(
                     "sec_docker_exposed_ports",
                     f"Container {container.get('Names')}: {ports}",

@@ -20,11 +20,25 @@ from app.services._identity import (
     CheckSudoNopasswd,
     CheckSshRootLogin,
     CheckSshPasswordAuth,
+    CheckAccountsWithoutPassword,
 )
 from app.services._network import (
     CheckManyPublicPorts,
     CheckWorldWritableEtc,
     CheckFirewallState,
+)
+from app.services._system import (
+    CheckPendingUpdates,
+    CheckInsecureServices,
+    CheckRiskyPorts,
+    CheckSuidSgidBinaries,
+    CheckInodeUsage,
+    CheckKernelSecurityParams,
+    CheckAppArmorSELinux,
+    CheckServiceStatus,
+    CheckAvIdsTools,
+    CheckTmpNoexec,
+    CheckDiskEncryption,
 )
 
 
@@ -35,9 +49,21 @@ SECURITY_CHECKS = [
     CheckSudoNopasswd,
     CheckSshRootLogin,
     CheckSshPasswordAuth,
+    CheckAccountsWithoutPassword,
     CheckManyPublicPorts,
     CheckWorldWritableEtc,
     CheckFirewallState,
+    CheckPendingUpdates,
+    CheckInsecureServices,
+    CheckRiskyPorts,
+    CheckSuidSgidBinaries,
+    CheckKernelSecurityParams,
+    CheckAppArmorSELinux,
+    CheckServiceStatus,
+    CheckAvIdsTools,
+    CheckTmpNoexec,
+    CheckDiskEncryption,
+    CheckInodeUsage,
 ]
 
 
@@ -207,6 +233,186 @@ REMEDIATION_GUIDES = {
             "Monitore metricas de rede para validar estabilidade.",
         ],
     },
+    "sec_pending_updates": {
+        "steps": [
+            "Aplique todas as atualizacoes com `apt update && apt upgrade -y`.",
+            "Identifique atualizacoes de seguranca com `apt list --upgradable | grep security`.",
+            "Agende janela de manutencao se necessario para reinicializacao.",
+        ],
+        "verify": [
+            "Execute `apt list --upgradable` e confirme saida vazia.",
+            "Verifique se o servico foi reiniciado apos atualizacao do kernel.",
+        ],
+    },
+    "sec_insecure_service_telnet": {
+        "steps": [
+            "Pare e desabilite o servico com `systemctl disable --now telnet.socket` ou `systemctl disable --now telnet`.",
+            "Remova o pacote com `apt purge telnetd`.",
+            "Substitua por SSH para acesso remoto.",
+        ],
+        "verify": [
+            "Confirme que `systemctl is-active telnet` retorna 'inactive'.",
+            "Teste que a porta 23 nao esta mais escutando com `ss -tlnp | grep :23`.",
+        ],
+    },
+    "sec_risky_port_": {
+        "steps": [
+            "Identifique o processo escutando na porta de risco com `ss -tlnp | grep :PORTA`.",
+            "Remova ou substitua o servico por alternativa segura.",
+            "Bloqueie a porta no firewall como medida temporaria.",
+        ],
+        "verify": [
+            "Confirme que `ss -tlnp` nao mostra mais a porta.",
+            "Valide que o firewall esta bloqueando a porta.",
+        ],
+    },
+    "sec_excessive_suid_sgid": {
+        "steps": [
+            "Liste todos os binarios SUID/SGID com `find /usr -xdev -type f -perm /6000`.",
+            "Remova o bit SUID/SGID de binarios nao essenciais com `chmod u-s /caminho/do/binario`.",
+            "Documente os binarios que necessitam do bit para operacao.",
+        ],
+        "verify": [
+            "Reexecute a auditoria e confirme reducao de binarios SUID/SGID.",
+            "Teste as funcionalidades dos servicos apos remocao.",
+        ],
+    },
+    "sec_kernel_ip_forward": {
+        "steps": [
+            "Desabilite com `sysctl -w net.ipv4.ip_forward=0`.",
+            "Persista com `echo 'net.ipv4.ip_forward=0' > /etc/sysctl.d/99-security.conf`.",
+        ],
+        "verify": [
+            "Confirme com `sysctl -n net.ipv4.ip_forward` que retorna 0.",
+            "Valide que a persistencia funciona apos reboot.",
+        ],
+    },
+    "sec_kernel_accept_redirects": {
+        "steps": [
+            "Desabilite com `sysctl -w net.ipv4.conf.all.accept_redirects=0`.",
+            "Persista em `/etc/sysctl.d/99-security.conf`.",
+        ],
+        "verify": ["Confirme com `sysctl -n net.ipv4.conf.all.accept_redirects`."],
+    },
+    "sec_kernel_randomize_va_space": {
+        "steps": [
+            "Ative ASLR completo com `sysctl -w kernel.randomize_va_space=2`.",
+            "Persista em `/etc/sysctl.d/99-security.conf`.",
+        ],
+        "verify": ["Confirme com `sysctl -n kernel.randomize_va_space` que retorna 2."],
+    },
+    "sec_kernel_dmesg_restrict": {
+        "steps": [
+            "Restrinja dmesg com `sysctl -w kernel.dmesg_restrict=1`.",
+            "Persista em `/etc/sysctl.d/99-security.conf`.",
+        ],
+        "verify": ["Confirme com `sysctl -n kernel.dmesg_restrict` que retorna 1."],
+    },
+    "sec_apparmor_inactive": {
+        "steps": [
+            "Ative o AppArmor com `systemctl enable --now apparmor`.",
+            "Carregue perfis com `aa-enforce /etc/apparmor.d/*`.",
+            "Se perfis nao existirem, instale com `apt install apparmor-profiles apparmor-profiles-extra`.",
+        ],
+        "verify": [
+            "Confirme que `aa-status` mostra perfis carregados e em enforce.",
+            "Reinicie o servico e confirme que o MAC esta ativo.",
+        ],
+    },
+    "sec_selinux_not_enforcing": {
+        "steps": [
+            "Ative enforcing com `setenforce 1` (temporario).",
+            "Persista em `/etc/selinux/config` alterando SELINUX= para enforcing.",
+        ],
+        "verify": [
+            "Confirme com `getenforce` que retorna 'Enforcing'.",
+            "Reinicie e confirme que persiste.",
+        ],
+    },
+    "sec_no_mac": {
+        "steps": [
+            "Instale AppArmor com `apt install apparmor apparmor-utils apparmor-profiles`.",
+            "Ative com `systemctl enable --now apparmor`.",
+        ],
+        "verify": ["Confirme com `aa-status` que perfis estao carregados."],
+    },
+    "sec_auditd_inactive": {
+        "steps": [
+            "Instale e ative com `apt install auditd && systemctl enable --now auditd`.",
+            "Adicione regras basicas: `auditctl -w /etc/passwd -p wa -k identity`.",
+        ],
+        "verify": ["Confirme com `systemctl is-active auditd` que retorna 'active'."],
+    },
+    "sec_rsyslog_inactive": {
+        "steps": [
+            "Instale e ative com `apt install rsyslog && systemctl enable --now rsyslog`.",
+        ],
+        "verify": ["Confirme com `systemctl is-active rsyslog` que retorna 'active'."],
+    },
+    "sec_fail2ban_inactive": {
+        "steps": [
+            "Instale com `apt install fail2ban`.",
+            "Ative com `systemctl enable --now fail2ban`.",
+            "Configure jails em `/etc/fail2ban/jail.local`.",
+        ],
+        "verify": [
+            "Confirme com `fail2ban-client status` que esta operacional.",
+            "Teste com `fail2ban-client status sshd`.",
+        ],
+    },
+    "sec_missing_av_ids_tools": {
+        "steps": [
+            "Instale ferramentas com `apt install clamav rkhunter chkrootkit aide fail2ban`.",
+            "Atualize bases: `freshclam && rkhunter --update`.",
+            "Inicialize AIDE: `aide --init && mv /var/lib/aide/aide.db.new /var/lib/aide/aide.db`.",
+        ],
+        "verify": [
+            "Confirme cada ferramenta com `which clamscan rkhunter chkrootkit aide`.",
+            "Execute `clamscan --version && rkhunter --versioncheck`.",
+        ],
+    },
+    "sec_tmp_noexec": {
+        "steps": [
+            "Adicione `noexec,nosuid,nodev` ao /tmp em /etc/fstab.",
+            "Se /tmp for tmpfs: `mount -o remount,noexec,nosuid,nodev /tmp`.",
+        ],
+        "verify": [
+            "Confirme com `mount | grep /tmp` que as opcoes estao presentes.",
+            "Tente executar um binario em /tmp para confirmar bloqueio.",
+        ],
+    },
+    "sec_no_disk_encryption": {
+        "steps": [
+            "Planeje criptografia full-disk com LUKS na proxima instalacao.",
+            "Para volumes existentes: `cryptsetup luksFormat` (destrutivo, requer backup).",
+            "Considere criptografia em nivel de aplicacao como alternativa.",
+        ],
+        "verify": [
+            "Confirme com `lsblk -o TYPE | grep crypt` que ha dispositivos criptografados.",
+            "Valide que dados sensiveis estao protegidos em repouso.",
+        ],
+    },
+    "sec_accounts_no_password": {
+        "steps": [
+            "Para cada conta sem senha, defina: `passwd <usuario>` ou bloqueie: `passwd -l <usuario>`.",
+            "Revise se a conta e necessaria antes de definir senha.",
+        ],
+        "verify": [
+            "Confirme em `/etc/shadow` que todas as contas tem hash de senha no segundo campo.",
+            "Tente logar com a conta para confirmar bloqueio.",
+        ],
+    },
+    "perf_inode_high": {
+        "steps": [
+            "Identifique diretorios com muitos arquivos pequenos usando `df -i`.",
+            "Limpe arquivos temporarios, caches e logs antigos.",
+            "Se estrutural, planeje expansao de inodes ou migracao.",
+        ],
+        "verify": [
+            "Reexecute `df -i` e confirme uso abaixo do threshold.",
+            "Monitore crescimento de inodes no filesystem afetado.",
+        ],
+    },
 }
 
 
@@ -216,7 +422,7 @@ def load_rules(path: Path) -> dict:
 
 def build_findings(snapshot: dict, rules: dict) -> list[dict]:
     findings: list[dict] = []
-    commands = snapshot["commands"]
+    commands = snapshot.get("commands", {})
 
     for checker_cls in SECURITY_CHECKS:
         checker = checker_cls()
@@ -240,15 +446,16 @@ def _performance_checks(snapshot: dict, commands: dict, findings: list[dict], ru
     weights = rules.get("security_weights", {})
     disk_output = commands.get("disk_usage", {}).get("stdout", "")
     meminfo = snapshot.get("files", {}).get("proc_meminfo", {}).get("content", "")
-    loadavg = snapshot.get("files", {}).get("proc_loadavg", {}).get("stdout", "")
+    loadavg = snapshot.get("files", {}).get("proc_loadavg", {}).get("content", "")
     swaps = snapshot.get("files", {}).get("proc_swaps", {}).get("content", "")
     dmesg = commands.get("dmesg_oom", {}).get("stdout", "")
+    cpu_cores = snapshot.get("metadata", {}).get("psutil", {}).get("cpu_count", 1)
 
     _check_disk_pressure(disk_output, thresholds, weights, findings)
     _check_memory_pressure(meminfo, thresholds, weights, findings)
     _check_swap_usage(swaps, thresholds, weights, findings)
-    _check_cpu_load(loadavg, thresholds, weights, findings)
-    _check_oom_events(dmesg, findings)
+    _check_cpu_load(loadavg, thresholds, weights, findings, cpu_cores)
+    _check_oom_events(dmesg, weights, findings)
 
 
 def _check_disk_pressure(disk_output: str, thresholds: dict, weights: dict, findings: list[dict]) -> None:
@@ -335,14 +542,13 @@ def _check_swap_usage(swaps_content: str, thresholds: dict, weights: dict, findi
         })
 
 
-def _check_cpu_load(loadavg: str, thresholds: dict, weights: dict, findings: list[dict]) -> None:
+def _check_cpu_load(loadavg: str, thresholds: dict, weights: dict, findings: list[dict], cpu_cores: int = 1) -> None:
     if not loadavg:
         return
     threshold = thresholds.get("load_per_cpu_warn", 1.5)
     parts = loadavg.split()
     try:
         load_1m = float(parts[0])
-        cpu_cores = max(1, int(parts[2])) if len(parts) > 2 else 1
         load_per_cpu = load_1m / cpu_cores if cpu_cores > 0 else load_1m
         if load_1m > threshold * cpu_cores:
             findings.append({
@@ -361,7 +567,7 @@ def _check_cpu_load(loadavg: str, thresholds: dict, weights: dict, findings: lis
         pass
 
 
-def _check_oom_events(dmesg: str, findings: list[dict]) -> None:
+def _check_oom_events(dmesg: str, weights: dict, findings: list[dict]) -> None:
     if dmesg and "Out of memory" in dmesg:
         findings.append({
             "check_id": "perf_oom_signals",
@@ -373,7 +579,7 @@ def _check_oom_events(dmesg: str, findings: list[dict]) -> None:
             "evidence": "Kernel OOM killer ativado",
             "recommendation": "Aumentar memória ou ajustar limites.",
             "reference": "OOM events baseline",
-            "weight": 25,
+            "weight": weights.get("CRIT", 25),
         })
 
 
@@ -384,8 +590,9 @@ def calculate_scores(findings: list[dict], rules: dict) -> dict:
     severity_counts = {"security": {}, "performance": {}}
 
     for finding in findings:
-        penalty = weights[finding["severity"]]
-        severity_counts[finding["domain"]][finding["severity"]] = severity_counts[finding["domain"]].get(finding["severity"], 0) + 1
+        sev = finding["severity"]
+        penalty = weights.get(sev, weights.get("MED", 8))
+        severity_counts[finding["domain"]][sev] = severity_counts[finding["domain"]].get(sev, 0) + 1
         if finding["domain"] == "security":
             security_penalty += penalty
         else:
@@ -416,12 +623,12 @@ def calculate_scores(findings: list[dict], rules: dict) -> dict:
 
 
 def summarize_snapshot(snapshot: dict, findings: list[dict]) -> dict:
-    files = snapshot["files"]
-    commands = snapshot["commands"]
-    passwd_entries = parser.parse_passwd(files["passwd"]["content"])
-    disk_rows = parser.parse_df(commands["disk_usage"].get("stdout", ""))
-    sockets = parser.parse_ss_listening(commands["listening_ports"].get("stdout", ""))
-    top_processes = parser.parse_ps_table(commands["cpu_processes"].get("stdout", ""))
+    files = snapshot.get("files", {})
+    commands = snapshot.get("commands", {})
+    passwd_entries = parser.parse_passwd(files.get("passwd", {}).get("content", ""))
+    disk_rows = parser.parse_df(commands.get("disk_usage", {}).get("stdout", ""))
+    sockets = parser.parse_ss_listening(commands.get("listening_ports", {}).get("stdout", ""))
+    top_processes = parser.parse_ps_table(commands.get("cpu_processes", {}).get("stdout", ""))
 
     docker_containers = []
     docker_networks = []

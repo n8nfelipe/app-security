@@ -7,6 +7,15 @@ set -e
 BACKEND_DIR=$(pwd)
 SERVICE_FILE="/etc/systemd/system/appsec-backend.service"
 
+# Gera um token aleatório se nenhum for fornecido
+if [ -z "${APPSEC_API_TOKEN}" ]; then
+    APPSEC_API_TOKEN=$(openssl rand -hex 32)
+    echo "INFO: APPSEC_API_TOKEN gerado automaticamente: $APPSEC_API_TOKEN"
+    echo "INFO: Defina VITE_API_TOKEN com o mesmo valor no frontend."
+else
+    echo "INFO: Usando APPSEC_API_TOKEN existente."
+fi
+
 echo "Configurando ambiente Python em $BACKEND_DIR..."
 # Verifica se estamos no diretório certo
 if [ ! -f "pyproject.toml" ]; then
@@ -32,7 +41,7 @@ After=network.target
 User=root
 WorkingDirectory=$BACKEND_DIR
 Environment=\"PATH=$BACKEND_DIR/.venv/bin:\$PATH\"
-Environment=\"APPSEC_API_TOKEN=changeme-token\"
+Environment=\"APPSEC_API_TOKEN=$APPSEC_API_TOKEN\"
 Environment=\"APPSEC_CORS_ORIGINS=['http://localhost:5173','http://localhost:8080']\"
 Environment=\"APPSEC_DATABASE_URL=sqlite:///$BACKEND_DIR/data/app_security_audit.db\"
 Environment=\"APPSEC_EXPORT_DIR=$BACKEND_DIR/data/exports\"

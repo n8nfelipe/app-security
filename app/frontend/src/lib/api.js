@@ -1,5 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
-const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? "changeme-token";
+const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? "";
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {

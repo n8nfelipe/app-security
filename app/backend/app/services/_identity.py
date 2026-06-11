@@ -115,3 +115,31 @@ class CheckSshPasswordAuth(Checker):
                 weight=rules["security_weights"]["MED"],
             ))
         return findings
+
+
+class CheckAccountsWithoutPassword(Checker):
+    def check(self, snapshot: dict, commands: dict, rules: dict) -> list[Finding]:
+        findings: list[Finding] = []
+        shadow = snapshot.get("files", {}).get("shadow", {}).get("content", "")
+        if not shadow:
+            return findings
+        no_pass = []
+        no_password_markers = {"", "!", "!!", "*", "NP", "!LK", "*LK*"}
+        for line in shadow.splitlines():
+            parts = line.split(":")
+            if len(parts) >= 2 and parts[1] in no_password_markers:
+                no_pass.append(parts[0])
+        if no_pass:
+            findings.append(Finding(
+                check_id="sec_accounts_no_password",
+                domain="security",
+                category="identity",
+                severity="CRIT",
+                title=f"{len(no_pass)} conta(s) sem senha definida",
+                rationale="Contas sem senha permitem acesso nao autenticado ao sistema.",
+                evidence=", ".join(no_pass),
+                recommendation="Definir senha ou bloquear a conta: passwd <usuario> ou passwd -l <usuario>",
+                reference="CIS Debian 5.3",
+                weight=rules["security_weights"]["CRIT"],
+            ))
+        return findings

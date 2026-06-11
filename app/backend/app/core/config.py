@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,7 +10,16 @@ class Settings(BaseSettings):
     base_dir: Path = Path(__file__).resolve().parents[2]
 
     app_name: str = "App Security Audit"
-    api_token: str = Field(default="changeme-token")
+    api_token: str = Field(default="")
+
+    @field_validator("api_token")
+    @classmethod
+    def token_not_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError(
+                "API token must be set via APPSEC_API_TOKEN environment variable"
+            )
+        return v
     cors_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:5173",

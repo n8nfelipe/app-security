@@ -53,7 +53,8 @@ class CheckFirewallState(Checker):
         from app.services._firewall import _evaluate_firewall_state
         findings: list[Finding] = []
         state = _evaluate_firewall_state(commands)
-        if state.get("status") == "not_confirmed":
+        status = state.get("status")
+        if status == "not_confirmed":
             findings.append(Finding(
                 check_id="sec_firewall_unclear",
                 domain="security",
@@ -63,6 +64,19 @@ class CheckFirewallState(Checker):
                 rationale="Ausencia de firewall controlado amplia superficie de ataque.",
                 evidence=state.get("evidence", ""),
                 recommendation="Configurar firewall ativo com nftables, ufw ou iptables.",
+                reference="CIS Debian 8.1",
+                weight=rules["security_weights"]["MED"],
+            ))
+        elif status == "permissive":
+            findings.append(Finding(
+                check_id="sec_firewall_permissive",
+                domain="security",
+                category="network",
+                severity="MED",
+                title="Firewall ativo mas permissivo",
+                rationale="Firewall sem politica restritiva permite trafego nao autorizado.",
+                evidence=state.get("evidence", ""),
+                recommendation="Configurar politica padrao de bloqueio de entrada.",
                 reference="CIS Debian 8.1",
                 weight=rules["security_weights"]["MED"],
             ))
