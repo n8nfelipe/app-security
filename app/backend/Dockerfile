@@ -8,9 +8,10 @@ COPY tests ./tests
 
 ARG BASE_OS=debian
 RUN if [ "$BASE_OS" = "fedora" ]; then \
-        dnf install -y nmap python3-pip curl; \
+        dnf install -y nmap python3-pip curl && dnf clean all; \
     else \
-        apt-get update && apt-get install -y nmap python3-pip curl; \
+        apt-get update && apt-get install -y --no-install-recommends nmap python3-pip curl \
+        && rm -rf /var/lib/apt/lists/*; \
     fi \
     && pip install --no-cache-dir -r requirements.txt
 
