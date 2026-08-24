@@ -28,11 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run hadolint
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: app/backend/Dockerfile
       - name: Run hadolint (frontend)
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: app/frontend/Dockerfile
 
